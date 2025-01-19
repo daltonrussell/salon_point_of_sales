@@ -8,7 +8,7 @@ const {
   Stylist, 
   Service, 
   Sale, 
-  SaleItem 
+  SaleItem, sequelize
 } = require('./database');
 
 let mainWindow;
@@ -147,7 +147,7 @@ ipcMain.handle('update-service', async (event, { id, ...serviceData }) => {
   }
 });
 
-// Stylist IPC Handlers (existing handlers)
+// Stylist IPC Handlers
 ipcMain.handle('create-stylist', async (event, stylistData) => {
   try {
     const stylist = await Stylist.create(stylistData);
@@ -160,7 +160,10 @@ ipcMain.handle('create-stylist', async (event, stylistData) => {
 
 ipcMain.handle('get-stylists', async (event, status = 'all') => {
   try {
+    console.log('Fetching stylists with status:', status);
     const where = status !== 'all' ? { status } : {};
+    console.log('Where clause:', where);
+    
     const stylists = await Stylist.findAll({
       where,
       raw: true,
@@ -169,6 +172,8 @@ ipcMain.handle('get-stylists', async (event, status = 'all') => {
         ['firstName', 'ASC']
       ]
     });
+    
+    console.log('Found stylists:', stylists);
     return stylists;
   } catch (error) {
     console.error('Error fetching stylists:', error);
@@ -250,6 +255,7 @@ ipcMain.handle('create-sale', async (event, {
   }
 });
 
+// Get client sales
 ipcMain.handle('get-client-sales', async (event, clientId) => {
   try {
     const sales = await Sale.findAll({
@@ -270,6 +276,7 @@ ipcMain.handle('get-client-sales', async (event, clientId) => {
 // Get stylist sales for reporting
 ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDate }) => {
   try {
+
     const where = {
       stylistId,
       saleDate: {
@@ -277,41 +284,82 @@ ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDat
       }
     };
 
+
     const sales = await Sale.findAll({
       where,
       include: [
-        { model: SaleItem, include: [Service] },
-        { model: Client },
-        { model: Stylist }
+        { 
+          model: SaleItem,
+          include: [{
+            model: Service,
+            attributes: ['name', 'price']
+          }],
+          attributes: ['price']
+        },
+        {
+          model: Client,
+          attributes: ['firstName', 'lastName']
+        },
+        {
+          model: Stylist,
+          attributes: ['firstName', 'lastName']
+        }
+      ],
+      attributes: [
+        'id',
+        'saleDate',
+        'subtotal',
+        'tax',
+        'tip',
+        'total',
+        'paymentMethod'
       ],
       order: [['saleDate', 'DESC']]
     });
 
-    // Calculate totals
+    // Simplify the data structure for serialization
+    const simplifiedSales = sales.map(sale => ({
+      id: sale.id,
+      saleDate: sale.saleDate,
+      subtotal: Number(sale.subtotal),
+      tax: Number(sale.tax),
+      tip: Number(sale.tip),
+      total: Number(sale.total),
+      paymentMethod: sale.paymentMethod,
+      client: sale.Client ? `${sale.Client.firstName} ${sale.Client.lastName}` : 'N/A',
+      stylist: sale.Stylist ? `${sale.Stylist.firstName} ${sale.Stylist.lastName}` : 'N/A',
+      items: sale.SaleItems.map(item => ({
+        service: item.Service.name,
+        price: Number(item.price)
+      }))
+    }));
+
+    console.log(simplifiedSales);
+
+    // Calculate summary
     const summary = {
       totalSales: sales.length,
-      totalRevenue: sales.reduce((sum, sale) => sum + Number(sale.total), 0),
-      totalTips: sales.reduce((sum, sale) => sum + Number(sale.tip), 0),
+      totalRevenue: simplifiedSales.reduce((sum, sale) => sum + sale.total, 0),
+      totalTips: simplifiedSales.reduce((sum, sale) => sum + sale.tip, 0),
       serviceBreakdown: {}
     };
 
     // Calculate service breakdown
-    sales.forEach(sale => {
-      sale.SaleItems.forEach(item => {
-        const serviceName = item.Service.name;
-        if (!summary.serviceBreakdown[serviceName]) {
-          summary.serviceBreakdown[serviceName] = {
+    simplifiedSales.forEach(sale => {
+      sale.items.forEach(item => {
+        if (!summary.serviceBreakdown[item.service]) {
+          summary.serviceBreakdown[item.service] = {
             count: 0,
             revenue: 0
           };
         }
-        summary.serviceBreakdown[serviceName].count += 1;
-        summary.serviceBreakdown[serviceName].revenue += Number(item.price);
+        summary.serviceBreakdown[item.service].count += 1;
+        summary.serviceBreakdown[item.service].revenue += item.price;
       });
     });
 
     return {
-      sales,
+      sales: simplifiedSales,
       summary
     };
   } catch (error) {

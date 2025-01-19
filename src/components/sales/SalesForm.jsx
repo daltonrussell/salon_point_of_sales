@@ -16,6 +16,11 @@ import {
 } from '@mui/material';
 const { ipcRenderer } = window.require('electron');
 
+//TODO: Add a price box so that when a service is selected, the default price is added, but is able to be overridden
+//TODO: Add a date selector so that you can add a service from another day
+//TODO: Add a way to see and edit old sales
+//TODO: Implement printing: https://www.snbc.com.cn/upload/portal/download/1531982353945.pdf | SNBC BTP-M300 Impact Receipt Printer - RMS EPoS Solutions interface
+
 const paymentMethods = [
   'Cash',
   'Credit Card',
@@ -88,7 +93,6 @@ function SalesForm() {
   const updateTotals = (items) => {
     const newSubtotal = items.reduce((sum, item) => sum + item.service.price, 0);
     setSubtotal(newSubtotal);
-    setTax(newSubtotal * 0.08); // Assuming 8% tax
   };
 
   const handleTipSelection = (percentage) => {

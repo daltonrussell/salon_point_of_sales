@@ -29,7 +29,9 @@ function ReportsModule() {
 
   const loadStylists = async () => {
     try {
+      console.log('Loading stylists...');
       const data = await ipcRenderer.invoke('get-stylists', 'active');
+      console.log('Received stylists:', data);
       setStylists(data);
     } catch (error) {
       console.error('Error loading stylists:', error);
@@ -40,11 +42,18 @@ function ReportsModule() {
     if (!selectedStylist) return;
 
     try {
+      console.log('Generating report with params:', {
+        stylistId: selectedStylist.id,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate)
+      });
       const result = await ipcRenderer.invoke('get-stylist-sales', {
         stylistId: selectedStylist.id,
         startDate: new Date(startDate),
         endDate: new Date(endDate)
       });
+      console.log(result);
+
       setReportData(result);
     } catch (error) {
       console.error('Error generating report:', error);
