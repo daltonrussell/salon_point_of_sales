@@ -22,6 +22,7 @@ const Client = sequelize.define('Client', {
   },
   phone: DataTypes.STRING,
   email: DataTypes.STRING,
+  address: DataTypes.TEXT,
 });
 
 const Stylist = sequelize.define('Stylist', {

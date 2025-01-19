@@ -14,12 +14,8 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import CustomerModal from '../customers/CustomerModal';
 const { ipcRenderer } = window.require('electron');
-
-//TODO: Add a price box so that when a service is selected, the default price is added, but is able to be overridden
-//TODO: Add a date selector so that you can add a service from another day
-//TODO: Add a way to see and edit old sales
-//TODO: Implement printing: https://www.snbc.com.cn/upload/portal/download/1531982353945.pdf | SNBC BTP-M300 Impact Receipt Printer - RMS EPoS Solutions interface
 
 const paymentMethods = [
   'Cash',
@@ -33,9 +29,11 @@ function SalesForm() {
   const [stylists, setStylists] = useState([]);
   const [services, setServices] = useState([]);
   const [cartItems, setCartItems] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Selected item states
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedStylist, setSelectedStylist] = useState(null);
 
@@ -50,6 +48,7 @@ function SalesForm() {
   useEffect(() => {
     loadStylists();
     loadServices();
+    loadAllClients();
   }, []);
 
   // Data loading functions
@@ -63,11 +62,36 @@ function SalesForm() {
   };
 
   const loadServices = async () => {
-    // TODO: Implement service loading from database
     setServices([
       { id: 1, name: 'Haircut', price: 30 },
       { id: 2, name: 'Color', price: 80 },
     ]);
+  };
+
+  const loadAllClients = async () => {
+    try {
+      const data = await ipcRenderer.invoke('get-all-clients');
+      setCustomers(data);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
+
+  const handleNewCustomer = (newCustomer) => {
+    if (!newCustomer || !newCustomer.lastName || !newCustomer.firstName) {
+      console.error('Invalid customer data:', newCustomer);
+      return;
+    }
+    
+    setCustomers(prev => [
+      ...prev.filter(c => c && c.lastName && c.firstName), // Filter out any invalid customers
+      newCustomer
+    ].sort((a, b) => {
+      if (!a || !b) return 0;
+      const lastNameCompare = a.lastName.localeCompare(b.lastName);
+      return lastNameCompare || a.firstName.localeCompare(b.firstName);
+    }));
+    setSelectedCustomer(newCustomer);
   };
 
   // Cart management
@@ -93,6 +117,7 @@ function SalesForm() {
   const updateTotals = (items) => {
     const newSubtotal = items.reduce((sum, item) => sum + item.service.price, 0);
     setSubtotal(newSubtotal);
+    setTax(newSubtotal * 0.08); // Assuming 8% tax
   };
 
   const handleTipSelection = (percentage) => {
@@ -107,11 +132,6 @@ function SalesForm() {
 
   const handleCompleteSale = async () => {
     try {
-      // TODO: Implement sale completion
-      // 1. Save sale to database
-      // 2. Save client history
-      // 3. Update inventory if needed
-      // 4. Clear form
       console.log('Sale completed');
     } catch (error) {
       console.error('Error completing sale:', error);
@@ -126,22 +146,49 @@ function SalesForm() {
           <Typography variant="h6" gutterBottom>
             Client Information
           </Typography>
-          <Autocomplete
-            freeSolo
-            options={[]} // TODO: Implement client search
-            getOptionLabel={(option) => 
-              option ? `${option.firstName} ${option.lastName}` : ''
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Search Clients"
-                variant="outlined"
-                fullWidth
-              />
-            )}
-            onChange={(event, newValue) => setSelectedClient(newValue)}
-          />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Autocomplete
+              sx={{ flex: 1 }}
+              options={customers}
+              getOptionLabel={(option) => 
+                option ? `${option.lastName}, ${option.firstName}` : ''
+              }
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              value={selectedCustomer}
+              onChange={(event, newValue) => setSelectedCustomer(newValue)}
+              renderOption={(props, option) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <li key={key} {...otherProps}>
+                    <div>
+                      <strong>{option.lastName}, {option.firstName}</strong>
+                      {option.phone && (
+                        <Typography variant="body2" color="text.secondary">
+                          {option.phone}
+                        </Typography>
+                      )}
+                    </div>
+                  </li>
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search Clients"
+                  placeholder="Type to filter clients..."
+                  variant="outlined"
+                  fullWidth
+                />
+              )}
+            />
+            <Button 
+              variant="contained" 
+              onClick={() => setIsModalOpen(true)}
+              sx={{ minWidth: 'auto', px: 2 }}
+            >
+              +
+            </Button>
+          </Box>
         </Paper>
 
         <Paper sx={{ p: 3 }}>
@@ -172,7 +219,7 @@ function SalesForm() {
                 getOptionLabel={(option) => 
                   option ? `${option.firstName} ${option.lastName}` : ''
                 }
-                isOptionEqualToValue={(option, value) => option.id === value.id}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -312,6 +359,12 @@ function SalesForm() {
           </Button>
         </Paper>
       </Grid>
+
+      <CustomerModal 
+        open={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onCustomerAdded={handleNewCustomer}
+      />
     </Grid>
   );
 }

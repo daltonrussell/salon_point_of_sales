@@ -58,10 +58,42 @@ app.on('activate', () => {
 // Client IPC Handlers
 ipcMain.handle('create-client', async (event, clientData) => {
   try {
-    const client = await Client.create(clientData);
-    return client;
+    const client = await Client.create(clientData, { raw: true });
+    // Get the plain object version of the client
+    const plainClient = await Client.findByPk(client.id, { raw: true });
+    return plainClient;
   } catch (error) {
     console.error('Error creating client:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-recent-clients', async (event, limit = 3) => {
+  try {
+    const clients = await Client.findAll({
+      order: [['createdAt', 'DESC']],
+      limit,
+      raw: true
+    });
+    return clients;
+  } catch (error) {
+    console.error('Error fetching recent clients:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-all-clients', async () => {
+  try {
+    const clients = await Client.findAll({
+      order: [
+        ['lastName', 'ASC'],
+        ['firstName', 'ASC']
+      ],
+      raw: true
+    });
+    return clients;
+  } catch (error) {
+    console.error('Error fetching all clients:', error);
     throw error;
   }
 });
