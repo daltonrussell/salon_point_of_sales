@@ -21,7 +21,6 @@ const paymentMethods = [
   'Cash',
   'Credit Card',
   'Debit Card',
-  'Gift Card',
 ];
 
 function SalesForm() {
@@ -43,6 +42,8 @@ function SalesForm() {
   const [tip, setTip] = useState(0);
   const [customTip, setCustomTip] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
+
 
   // Load initial data
   useEffect(() => {
@@ -95,17 +96,23 @@ function SalesForm() {
   };
 
   // Cart management
-  const addToCart = () => {
+   const addToCart = () => {
     if (selectedService && selectedStylist) {
       const newItem = {
-        id: Date.now(), // temporary ID
-        service: selectedService,
+        id: Date.now(), // Temporary ID
+        service: {
+          ...selectedService,
+          price: parseFloat(customPrice) || selectedService.price, // Use custom price or default
+        },
         stylist: selectedStylist,
       };
       setCartItems([...cartItems, newItem]);
       updateTotals([...cartItems, newItem]);
+      setSelectedService(null); // Reset selected service
+      setCustomPrice(''); // Clear the custom price
     }
   };
+
 
   const removeFromCart = (itemId) => {
     const updatedCart = cartItems.filter(item => item.id !== itemId);
@@ -144,64 +151,88 @@ function SalesForm() {
       <Grid item xs={8}>
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Client Information
+            Sale Information
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Row 1: Customer dropdown and button */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Autocomplete
+                sx={{ flex: 1 }}
+                options={customers}
+                getOptionLabel={(option) =>
+                  option ? `${option.lastName}, ${option.firstName}` : ''
+                }
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                value={selectedCustomer}
+                onChange={(event, newValue) => setSelectedCustomer(newValue)}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <li key={key} {...otherProps}>
+                      <div>
+                        <strong>
+                          {option.lastName}, {option.firstName}
+                        </strong>
+                        {option.phone && (
+                          <Typography variant="body2" color="text.secondary">
+                            {option.phone}
+                          </Typography>
+                        )}
+                      </div>
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Client"
+                    placeholder="Type to filter clients..."
+                    variant="outlined"
+                    fullWidth
+                  />
+                )}
+              />
+              <Button
+                variant="contained"
+                onClick={() => setIsModalOpen(true)}
+                sx={{ minWidth: 'auto', px: 2 }}
+              >
+                +
+              </Button>
+            </Box>
+
+            {/* Row 2: Stylist dropdown */}
             <Autocomplete
-              sx={{ flex: 1 }}
-              options={customers}
-              getOptionLabel={(option) => 
-                option ? `${option.lastName}, ${option.firstName}` : ''
+              options={stylists}
+              getOptionLabel={(option) =>
+                option ? `${option.firstName} ${option.lastName}` : ''
               }
               isOptionEqualToValue={(option, value) => option?.id === value?.id}
-              value={selectedCustomer}
-              onChange={(event, newValue) => setSelectedCustomer(newValue)}
-              renderOption={(props, option) => {
-                const { key, ...otherProps } = props;
-                return (
-                  <li key={key} {...otherProps}>
-                    <div>
-                      <strong>{option.lastName}, {option.firstName}</strong>
-                      {option.phone && (
-                        <Typography variant="body2" color="text.secondary">
-                          {option.phone}
-                        </Typography>
-                      )}
-                    </div>
-                  </li>
-                );
-              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Search Clients"
-                  placeholder="Type to filter clients..."
+                  label="Stylist"
                   variant="outlined"
                   fullWidth
                 />
               )}
+              onChange={(event, newValue) => setSelectedStylist(newValue)}
             />
-            <Button 
-              variant="contained" 
-              onClick={() => setIsModalOpen(true)}
-              sx={{ minWidth: 'auto', px: 2 }}
-            >
-              +
-            </Button>
           </Box>
         </Paper>
 
+
+
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Services & Products
+            Services
           </Typography>
           <Grid container spacing={2} alignItems="flex-start">
-            <Grid item xs={5}>
+            {/* Service Dropdown */}
+            <Grid item xs={4}>
               <Autocomplete
                 options={services}
-                getOptionLabel={(option) => 
-                  option ? `${option.name} - $${option.price}` : ''
-                }
+                getOptionLabel={(option) => (option ? `${option.name} - $${option.price}` : '')}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -210,30 +241,32 @@ function SalesForm() {
                     fullWidth
                   />
                 )}
-                onChange={(event, newValue) => setSelectedService(newValue)}
+                onChange={(event, newValue) => {
+                  setSelectedService(newValue);
+                  setCustomPrice(newValue ? newValue.price : ''); // Reset or set the default price
+                }}
               />
             </Grid>
-            <Grid item xs={5}>
-              <Autocomplete
-                options={stylists}
-                getOptionLabel={(option) => 
-                  option ? `${option.firstName} ${option.lastName}` : ''
-                }
-                isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Stylist"
-                    variant="outlined"
-                    fullWidth
-                  />
-                )}
-                onChange={(event, newValue) => setSelectedStylist(newValue)}
+
+            {/* Price Text Box */}
+            <Grid item xs={4}>
+              <TextField
+                label="Price"
+                variant="outlined"
+                fullWidth
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+                disabled={!selectedService} // Disable if no service is selected
               />
             </Grid>
-            <Grid item xs={2}>
-              <Button 
-                variant="contained" 
+
+            {/* Add Button */}
+            <Grid item xs={4}>
+              <Button
+                variant="contained"
                 onClick={addToCart}
                 disabled={!selectedService || !selectedStylist}
                 fullWidth
@@ -244,6 +277,7 @@ function SalesForm() {
             </Grid>
           </Grid>
         </Paper>
+
       </Grid>
 
       {/* Right Section - Cart Summary */}
