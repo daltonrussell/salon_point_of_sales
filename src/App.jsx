@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Container, CssBaseline, Box } from '@mui/material';
-import TodoForm from './components/TodoForm';
-import TodoList from './components/TodoList';
+import React, { useState } from 'react';
+import { Box, CssBaseline } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-
-const { ipcRenderer } = window.require('electron');
+import Sidebar from './components/layout/Sidebar';
+import InventoryPage from './pages/InventoryPage';
 
 const theme = createTheme({
   palette: {
@@ -19,44 +17,46 @@ const theme = createTheme({
 });
 
 function App() {
-  const [todos, setTodos] = useState([]);
+  const [selectedItem, setSelectedItem] = useState('sales');
 
-  useEffect(() => {
-    loadTodos();
-  }, []);
-
-  const loadTodos = async () => {
-    try {
-      const loadedTodos = await ipcRenderer.invoke('get-todos');
-      console.log('Loaded todos:', loadedTodos); // Debug log
-      setTodos(loadedTodos);
-    } catch (error) {
-      console.error('Error loading todos:', error);
-    }
+  const handleItemSelect = (itemId) => {
+    setSelectedItem(itemId);
   };
 
-  const handleAddTodo = async (todoData) => {
-    try {
-      console.log('Adding todo:', todoData); // Debug log
-      const newTodo = await ipcRenderer.invoke('create-todo', todoData);
-      console.log('New todo created:', newTodo); // Debug log
-      setTodos(prevTodos => [...prevTodos, newTodo]);
-    } catch (error) {
-      console.error('Error adding todo:', error);
+  const renderContent = () => {
+    switch (selectedItem) {
+      case 'inventory':
+        return <InventoryPage />;
+      case 'sales':
+        return <div>Sales Content</div>;
+      case 'customers':
+        return <div>Customers Content</div>;
+      case 'reports':
+        return <div>Reports Content</div>;
+      case 'settings':
+        return <div>Settings Content</div>;
+      default:
+        return <div>Select a menu item</div>;
     }
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="md">
-        <Box sx={{ my: 4 }}>
-          <TodoForm onAddTodo={handleAddTodo} />
-          <Box sx={{ mt: 4 }}>
-            <TodoList todos={todos} />
-          </Box>
+      <Box sx={{ display: 'flex' }}>
+        <Sidebar selectedItem={selectedItem} onItemSelect={handleItemSelect} />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: 3,
+            mt: 8,
+            ml: `240px`, // Same as DRAWER_WIDTH from Sidebar
+          }}
+        >
+          {renderContent()}
         </Box>
-      </Container>
+      </Box>
     </ThemeProvider>
   );
 }

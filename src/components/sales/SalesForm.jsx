@@ -39,8 +39,6 @@ function SalesForm() {
   // Payment states
   const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
-  const [tip, setTip] = useState(0);
-  const [customTip, setCustomTip] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [customPrice, setCustomPrice] = useState('');
 
@@ -127,15 +125,6 @@ function SalesForm() {
     setTax(newSubtotal * 0.08); // Assuming 8% tax
   };
 
-  const handleTipSelection = (percentage) => {
-    setTip(subtotal * (percentage / 100));
-    setCustomTip('');
-  };
-
-  const handleCustomTip = (value) => {
-    setCustomTip(value);
-    setTip(parseFloat(value) || 0);
-  };
 
   const handleCompleteSale = async () => {
     try {
@@ -326,10 +315,6 @@ function SalesForm() {
               <Typography>Tax</Typography>
               <Typography>${tax.toFixed(2)}</Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography>Tip</Typography>
-              <Typography>${tip.toFixed(2)}</Typography>
-            </Box>
             <Box sx={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -337,7 +322,7 @@ function SalesForm() {
               fontWeight: 'bold'
             }}>
               <Typography>Total</Typography>
-              <Typography>${(subtotal + tax + tip).toFixed(2)}</Typography>
+              <Typography>${(subtotal + tax).toFixed(2)}</Typography>
             </Box>
           </Box>
 
@@ -345,27 +330,6 @@ function SalesForm() {
           <Typography variant="subtitle1" gutterBottom>
             Payment
           </Typography>
-          
-          {/* Tip Options */}
-          <Typography variant="body2" gutterBottom>
-            Tip
-          </Typography>
-          <ButtonGroup fullWidth sx={{ mb: 2 }}>
-            <Button onClick={() => handleTipSelection(15)}>15%</Button>
-            <Button onClick={() => handleTipSelection(18)}>18%</Button>
-            <Button onClick={() => handleTipSelection(20)}>20%</Button>
-          </ButtonGroup>
-          
-          <TextField
-            label="Custom Tip"
-            value={customTip}
-            onChange={(e) => handleCustomTip(e.target.value)}
-            fullWidth
-            sx={{ mb: 2 }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
-            }}
-          />
 
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Payment Method</InputLabel>

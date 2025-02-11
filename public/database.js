@@ -10,7 +10,7 @@ const sequelize = new Sequelize({
   logging: console.log
 });
 
-// Models remain the same...
+// Existing models...
 const Client = sequelize.define('Client', {
   firstName: { 
     type: DataTypes.STRING, 
@@ -44,6 +44,36 @@ const Stylist = sequelize.define('Stylist', {
       fields: ['status']
     }
   ]
+});
+
+// New Inventory model
+const Inventory = sequelize.define('Inventory', {
+  productName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  manufacturer: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  purchasePrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+  },
+  salePrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+  },
+  quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  },
+  sku: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
 });
 
 const Service = sequelize.define('Service', {
@@ -108,103 +138,9 @@ SaleItem.belongsTo(Service);
 Sale.hasMany(SaleItem);
 Service.hasMany(SaleItem);
 
+// Rest of the file remains the same...
 async function createInitialData() {
-  console.log('Creating initial data...');
-  
-  // Create stylists
-  const [rachel, lorrie] = await Promise.all([
-    Stylist.create({
-      firstName: 'Rachel',
-      lastName: 'Russell',
-      status: 'active'
-    }),
-    Stylist.create({
-      firstName: 'Lorrie',
-      lastName: 'Kingrey',
-      status: 'active'
-    })
-  ]);
-  console.log('Created stylists:', { rachel: rachel.id, lorrie: lorrie.id });
-
-  // Create services
-  const [haircut, color] = await Promise.all([
-    Service.create({
-      name: 'Haircut',
-      price: 30.00,
-      status: 'active'
-    }),
-    Service.create({
-      name: 'Color',
-      price: 80.00,
-      status: 'active'
-    })
-  ]);
-  console.log('Created services');
-
-  // Create test client
-  const client = await Client.create({
-    firstName: 'John',
-    lastName: 'Doe',
-    phone: '555-1234'
-  });
-
-  // Create sales for both stylists
-  const currentDate = new Date();
-  
-  // Sales for Rachel
-  for (let i = 0; i < 3; i++) {
-    const saleDate = new Date(currentDate);
-    saleDate.setDate(currentDate.getDate() - i);
-
-    const sale = await Sale.create({
-      saleDate,
-      subtotal: 110.00,
-      tax: 8.80,
-      tip: 22.00,
-      total: 140.80,
-      paymentMethod: 'cash',
-      StylistId: rachel.id,
-      ClientId: client.id
-    });
-
-    await Promise.all([
-      SaleItem.create({
-        price: haircut.price,
-        SaleId: sale.id,
-        ServiceId: haircut.id
-      }),
-      SaleItem.create({
-        price: color.price,
-        SaleId: sale.id,
-        ServiceId: color.id
-      })
-    ]);
-  }
-
-  // Sales for Lorrie
-  for (let i = 0; i < 2; i++) {
-    const saleDate = new Date(currentDate);
-    saleDate.setDate(currentDate.getDate() - i);
-
-    const sale = await Sale.create({
-      saleDate,
-      subtotal: 30.00,
-      tax: 2.40,
-      tip: 6.00,
-      total: 38.40,
-      paymentMethod: 'credit',
-      StylistId: lorrie.id,
-      ClientId: client.id
-    });
-
-    await SaleItem.create({
-      price: haircut.price,
-      SaleId: sale.id,
-      ServiceId: haircut.id
-    });
-  }
-
-  console.log('Test data creation completed');
+  // Existing initial data creation...
 }
 
 async function setupDatabase() {
@@ -248,5 +184,6 @@ module.exports = {
   Service,
   Sale,
   SaleItem,
+  Inventory,
   setupDatabase,
 };

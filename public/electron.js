@@ -8,7 +8,7 @@ const {
   Stylist, 
   Service, 
   Sale, 
-  SaleItem, sequelize
+  SaleItem, sequelize, Inventory
 } = require('./database');
 
 let mainWindow;
@@ -396,6 +396,90 @@ ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDat
     };
   } catch (error) {
     console.error('Error fetching stylist sales:', error);
+    throw error;
+  }
+});
+
+// Inventory IPC Handlers
+ipcMain.handle('create-inventory', async (event, inventoryData) => {
+  try {
+    const inventory = await Inventory.create(inventoryData);
+    return inventory.get({ plain: true });
+  } catch (error) {
+    console.error('Error creating inventory item:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-all-inventory', async () => {
+  try {
+    const inventory = await Inventory.findAll({
+      order: [['productName', 'ASC']],
+      raw: true
+    });
+    return inventory;
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('search-inventory', async (event, searchTerm) => {
+  try {
+    const inventory = await Inventory.findAll({
+      where: {
+        [Op.or]: [
+          {
+            productName: {
+              [Op.like]: `%${searchTerm}%`
+            }
+          },
+          {
+            manufacturer: {
+              [Op.like]: `%${searchTerm}%`
+            }
+          },
+          {
+            sku: {
+              [Op.like]: `%${searchTerm}%`
+            }
+          }
+        ]
+      },
+      raw: true
+    });
+    return inventory;
+  } catch (error) {
+    console.error('Error searching inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('update-inventory', async (event, { id, ...inventoryData }) => {
+  try {
+    const inventory = await Inventory.findByPk(id);
+    if (!inventory) {
+      throw new Error('Inventory item not found');
+    }
+    await inventory.update(inventoryData);
+    return inventory.get({ plain: true });
+  } catch (error) {
+    console.error('Error updating inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('update-inventory-quantity', async (event, { id, quantity }) => {
+  try {
+    const inventory = await Inventory.findByPk(id);
+    if (!inventory) {
+      throw new Error('Inventory item not found');
+    }
+    await inventory.increment('quantity', { by: quantity });
+    await inventory.reload();
+    return inventory.get({ plain: true });
+  } catch (error) {
+    console.error('Error updating inventory quantity:', error);
     throw error;
   }
 });
