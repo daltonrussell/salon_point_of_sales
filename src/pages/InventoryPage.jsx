@@ -18,11 +18,13 @@ import {
   InputAdornment,
   Snackbar,
   Alert,
+  Stack,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
   QrCodeScanner as ScannerIcon,
+  LocalShipping as ReceiveIcon,
 } from '@mui/icons-material';
 
 const { ipcRenderer } = window.require('electron');
@@ -31,6 +33,7 @@ const InventoryPage = () => {
   const [inventory, setInventory] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [newItem, setNewItem] = useState({
     productName: '',
@@ -40,10 +43,29 @@ const InventoryPage = () => {
     quantity: '',
     sku: ''
   });
+  const [receiveInventory, setReceiveInventory] = useState({
+    searchSku: '',
+    currentQuantity: 0,
+    receivedQuantity: '',
+    totalAfter: 0,
+    productName: '',
+    found: false
+  });
 
   useEffect(() => {
     loadInventory();
   }, []);
+
+  // Calculate total after whenever received quantity changes
+  useEffect(() => {
+    if (receiveInventory.found) {
+      const received = parseInt(receiveInventory.receivedQuantity) || 0;
+      setReceiveInventory(prev => ({
+        ...prev,
+        totalAfter: prev.currentQuantity + received
+      }));
+    }
+  }, [receiveInventory.receivedQuantity]);
 
   const loadInventory = async () => {
     try {
@@ -51,12 +73,16 @@ const InventoryPage = () => {
       setInventory(items);
     } catch (error) {
       console.error('Error loading inventory:', error);
-      setSnackbar({
-        open: true,
-        message: 'Error loading inventory',
-        severity: 'error'
-      });
+      showSnackbar('Error loading inventory', 'error');
     }
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity,
+    });
   };
 
   const handleSearch = async (event) => {
@@ -72,11 +98,60 @@ const InventoryPage = () => {
       }
     } catch (error) {
       console.error('Error searching inventory:', error);
-      setSnackbar({
-        open: true,
-        message: 'Error searching inventory',
-        severity: 'error'
+      showSnackbar('Error searching inventory', 'error');
+    }
+  };
+
+  const handleSearchSku = async () => {
+    try {
+      const results = await ipcRenderer.invoke('search-inventory-by-sku', receiveInventory.searchSku);
+      if (results && results.length > 0) {
+        const item = results[0];
+        setReceiveInventory(prev => ({
+          ...prev,
+          currentQuantity: item.quantity,
+          productName: item.productName,
+          found: true,
+          receivedQuantity: '',
+          totalAfter: item.quantity
+        }));
+      } else {
+        showSnackbar('SKU not found', 'error');
+        setReceiveInventory(prev => ({
+          ...prev,
+          currentQuantity: 0,
+          productName: '',
+          found: false,
+          receivedQuantity: '',
+          totalAfter: 0
+        }));
+      }
+    } catch (error) {
+      console.error('Error searching SKU:', error);
+      showSnackbar('Error searching SKU', 'error');
+    }
+  };
+
+  const handleReceiveSubmit = async () => {
+    try {
+      await ipcRenderer.invoke('update-inventory-quantity', {
+        sku: receiveInventory.searchSku,
+        quantity: parseInt(receiveInventory.receivedQuantity)
       });
+      showSnackbar('Inventory updated successfully');
+      setIsReceiveDialogOpen(false);
+      loadInventory();
+      setReceiveInventory({
+        searchSku: '',
+        currentQuantity: 0,
+        receivedQuantity: '',
+        totalAfter: 0,
+        productName: '',
+        found: false
+      });
+    } catch (error) {
+      console.error('Error updating inventory:', error);
+      showSnackbar('Error updating inventory', 'error');
     }
   };
 
@@ -102,18 +177,10 @@ const InventoryPage = () => {
       });
       setIsDialogOpen(false);
       loadInventory();
-      setSnackbar({
-        open: true,
-        message: 'Inventory item added successfully',
-        severity: 'success'
-      });
+      showSnackbar('Inventory item added successfully');
     } catch (error) {
       console.error('Error adding inventory item:', error);
-      setSnackbar({
-        open: true,
-        message: 'Error adding inventory item',
-        severity: 'error'
-      });
+      showSnackbar('Error adding inventory item', 'error');
     }
   };
 
@@ -144,13 +211,22 @@ const InventoryPage = () => {
             ),
           }}
         />
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setIsDialogOpen(true)}
-        >
-          Add Inventory
-        </Button>
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="contained"
+            startIcon={<ReceiveIcon />}
+            onClick={() => setIsReceiveDialogOpen(true)}
+          >
+            Receive Inventory
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setIsDialogOpen(true)}
+          >
+            Add Inventory
+          </Button>
+        </Stack>
       </Box>
 
       <TableContainer component={Paper}>
@@ -188,6 +264,7 @@ const InventoryPage = () => {
         </Table>
       </TableContainer>
 
+      {/* Add Inventory Dialog */}
       <Dialog 
         open={isDialogOpen} 
         onClose={() => setIsDialogOpen(false)}
@@ -269,6 +346,88 @@ const InventoryPage = () => {
             <Button type="submit" variant="contained">Add Item</Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Receive Inventory Dialog */}
+      <Dialog
+        open={isReceiveDialogOpen}
+        onClose={() => setIsReceiveDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Receive Inventory</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'grid', gap: 2, pt: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                label="Search SKU"
+                value={receiveInventory.searchSku}
+                onChange={(e) => setReceiveInventory(prev => ({ ...prev, searchSku: e.target.value }))}
+                fullWidth
+              />
+              <IconButton 
+                onClick={handleScanBarcode}
+                sx={{ alignSelf: 'center' }}
+              >
+                <ScannerIcon />
+              </IconButton>
+              <Button 
+                variant="contained"
+                onClick={handleSearchSku}
+                sx={{ alignSelf: 'center' }}
+              >
+                Search
+              </Button>
+            </Box>
+            
+            {receiveInventory.found && (
+              <>
+                <TextField
+                  label="Product Name"
+                  value={receiveInventory.productName}
+                  InputProps={{ readOnly: true }}
+                  disabled
+                  fullWidth
+                />
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
+                  <TextField
+                    label="Current Quantity"
+                    value={receiveInventory.currentQuantity}
+                    InputProps={{ readOnly: true }}
+                    disabled
+                  />
+                  <TextField
+                    label="Received Quantity"
+                    type="number"
+                    value={receiveInventory.receivedQuantity}
+                    onChange={(e) => setReceiveInventory(prev => ({ 
+                      ...prev, 
+                      receivedQuantity: e.target.value
+                    }))}
+                    inputProps={{ min: 1 }}
+                    autoFocus
+                  />
+                  <TextField
+                    label="Total After"
+                    value={receiveInventory.totalAfter}
+                    InputProps={{ readOnly: true }}
+                    disabled
+                  />
+                </Box>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setIsReceiveDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleReceiveSubmit}
+            variant="contained"
+            disabled={!receiveInventory.found || !receiveInventory.receivedQuantity}
+          >
+            Update Inventory
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <Snackbar 
