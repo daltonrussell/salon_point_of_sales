@@ -10,7 +10,6 @@ const sequelize = new Sequelize({
   logging: console.log
 });
 
-// Existing models...
 const Client = sequelize.define('Client', {
   firstName: { 
     type: DataTypes.STRING, 
@@ -102,15 +101,11 @@ const Sale = sequelize.define('Sale', {
     type: DataTypes.DECIMAL(10, 2), 
     allowNull: false 
   },
-  tax: { 
-    type: DataTypes.DECIMAL(10, 2), 
-    allowNull: false 
+  tax: {  // Add this field
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false
   },
-  tip: { 
-    type: DataTypes.DECIMAL(10, 2), 
-    defaultValue: 0 
-  },
-  total: { 
+  total: {
     type: DataTypes.DECIMAL(10, 2), 
     allowNull: false 
   },
@@ -124,28 +119,35 @@ const SaleItem = sequelize.define('SaleItem', {
   price: { 
     type: DataTypes.DECIMAL(10, 2), 
     allowNull: false 
+  },
+  quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1
+  },
+  itemType: {
+    type: DataTypes.ENUM('service', 'product'),
+    allowNull: false
   }
 });
 
 // Define relationships
 Sale.belongsTo(Client);
 Sale.belongsTo(Stylist);
-Client.hasMany(Sale);
-Stylist.hasMany(Sale);
+Sale.hasMany(SaleItem);
 
 SaleItem.belongsTo(Sale);
 SaleItem.belongsTo(Service);
-Sale.hasMany(SaleItem);
-Service.hasMany(SaleItem);
+SaleItem.belongsTo(Inventory);
 
-// Rest of the file remains the same...
-async function createInitialData() {
-  // Existing initial data creation...
-}
+Client.hasMany(Sale);
+Stylist.hasMany(Sale);
+
+Service.hasMany(SaleItem);
+Inventory.hasMany(SaleItem);
 
 async function setupDatabase() {
   try {
-    // If database exists, check if it has any stylists
     let needsInitialData = false;
     
     if (fs.existsSync(DB_PATH)) {
@@ -165,7 +167,6 @@ async function setupDatabase() {
     if (needsInitialData) {
       console.log('Database needs initialization...');
       await sequelize.sync({ force: true });
-      await createInitialData();
     } else {
       await sequelize.sync();
     }

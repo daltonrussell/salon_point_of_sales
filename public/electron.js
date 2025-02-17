@@ -241,43 +241,73 @@ ipcMain.handle('delete-stylist', async (event, { id }) => {
   }
 });
 
-// Sale IPC Handlers
-ipcMain.handle('create-sale', async (event, { 
-  clientId, 
-  stylistId, 
-  items, 
-  subtotal, 
-  tax, 
-  tip, 
-  total, 
-  paymentMethod 
+ipcMain.handle('create-sale', async (event, {
+  clientId,  // Make sure these are being passed
+  stylistId, // from the UI
+  services,
+  products,
+  subtotal,
+  tax,      // Now being passed from UI
+  total,
+  paymentMethod
 }) => {
   try {
-    // Start a transaction
     const result = await sequelize.transaction(async (t) => {
-      // Create the sale
+      // Create the sale with client and stylist IDs
       const sale = await Sale.create({
-        clientId,
-        stylistId,
+        clientId,    // This assigns the sale to a client
+        stylistId,   // This assigns the sale to a stylist
         subtotal,
-        tax,
-        tip,
+        tax,         // Using tax calculated in UI
         total,
-        paymentMethod
+        paymentMethod,
+        saleDate: new Date()
       }, { transaction: t });
 
-      // Create sale items
-      const saleItems = await Promise.all(
-        items.map(item => 
+      // Create service sale items
+      const serviceItems = await Promise.all(
+        services.map(service =>
           SaleItem.create({
             saleId: sale.id,
-            serviceId: item.serviceId,
-            price: item.price
+            serviceId: service.serviceId,
+            price: service.price,
+            itemType: 'service',
+            quantity: 1
           }, { transaction: t })
         )
       );
 
-      return { sale, saleItems };
+      // Create product sale items and update inventory
+      const productItems = await Promise.all(
+        products.map(async product => {
+          const inventoryItem = await Inventory.findByPk(product.inventoryId, { transaction: t });
+
+          if (!inventoryItem) {
+            throw new Error(`Product with ID ${product.inventoryId} not found`);
+          }
+
+          if (inventoryItem.quantity < product.quantity) {
+            throw new Error(`Insufficient inventory for product ${inventoryItem.productName}`);
+          }
+
+          await inventoryItem.update({
+            quantity: inventoryItem.quantity - product.quantity
+          }, { transaction: t });
+
+          return SaleItem.create({
+            saleId: sale.id,
+            inventoryId: product.inventoryId,
+            price: product.price,
+            quantity: product.quantity,
+            itemType: 'product'
+          }, { transaction: t });
+        })
+      );
+
+      return {
+        sale,
+        saleItems: [...serviceItems, ...productItems]
+      };
     });
 
     return result;

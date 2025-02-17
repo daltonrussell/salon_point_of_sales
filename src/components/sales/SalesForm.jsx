@@ -13,6 +13,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import CustomerModal from '../customers/CustomerModal';
 const { ipcRenderer } = window.require('electron');
@@ -23,6 +25,8 @@ const paymentMethods = [
   'Debit Card',
 ];
 
+const TAX_RATE = 0.08; // 8% tax rate for products only
+
 function SalesForm() {
   // Data states
   const [stylists, setStylists] = useState([]);
@@ -30,6 +34,7 @@ function SalesForm() {
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(0); // 0 for services, 1 for products
   
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -38,10 +43,10 @@ function SalesForm() {
 
   // Payment states
   const [subtotal, setSubtotal] = useState(0);
-  const [tax, setTax] = useState(0);
+  const [productTax, setProductTax] = useState(0);
+  const [serviceTax, setServiceTax] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [customPrice, setCustomPrice] = useState('');
-
 
   // Load initial data
   useEffect(() => {
@@ -83,7 +88,7 @@ function SalesForm() {
     }
     
     setCustomers(prev => [
-      ...prev.filter(c => c && c.lastName && c.firstName), // Filter out any invalid customers
+      ...prev.filter(c => c && c.lastName && c.firstName),
       newCustomer
     ].sort((a, b) => {
       if (!a || !b) return 0;
@@ -94,23 +99,24 @@ function SalesForm() {
   };
 
   // Cart management
-   const addToCart = () => {
+  const addToCart = () => {
     if (selectedService && selectedStylist) {
       const newItem = {
-        id: Date.now(), // Temporary ID
+        id: Date.now(),
+        type: 'service',
         service: {
           ...selectedService,
-          price: parseFloat(customPrice) || selectedService.price, // Use custom price or default
+          price: parseFloat(customPrice) || selectedService.price,
         },
         stylist: selectedStylist,
       };
-      setCartItems([...cartItems, newItem]);
-      updateTotals([...cartItems, newItem]);
-      setSelectedService(null); // Reset selected service
-      setCustomPrice(''); // Clear the custom price
+      const updatedCart = [...cartItems, newItem];
+      setCartItems(updatedCart);
+      updateTotals(updatedCart);
+      setSelectedService(null);
+      setCustomPrice('');
     }
   };
-
 
   const removeFromCart = (itemId) => {
     const updatedCart = cartItems.filter(item => item.id !== itemId);
@@ -120,17 +126,58 @@ function SalesForm() {
 
   // Payment calculations
   const updateTotals = (items) => {
-    const newSubtotal = items.reduce((sum, item) => sum + item.service.price, 0);
-    setSubtotal(newSubtotal);
-    setTax(newSubtotal * 0.08); // Assuming 8% tax
-  };
+    let newServiceSubtotal = 0;
+    let newProductSubtotal = 0;
 
+    items.forEach(item => {
+      if (item.type === 'service') {
+        newServiceSubtotal += parseFloat(item.service.price);
+      } else if (item.type === 'product') {
+        newProductSubtotal += parseFloat(item.price);
+      }
+    });
+
+    const newProductTax = newProductSubtotal * TAX_RATE;
+    
+    setSubtotal(newServiceSubtotal + newProductSubtotal);
+    setProductTax(newProductTax);
+    setServiceTax(0); // Services are not taxed
+  };
 
   const handleCompleteSale = async () => {
     try {
-      console.log('Sale completed');
+      const saleData = {
+        clientId: selectedCustomer.id,
+        stylistId: selectedStylist?.id,
+        items: cartItems.map(item => ({
+          type: item.type,
+          price: item.type === 'service' ? item.service.price : item.price,
+          quantity: item.quantity || 1,
+          ...(item.type === 'service' 
+            ? { serviceId: item.service.id }
+            : { inventoryId: item.product.id }
+          )
+        })),
+        subtotal,
+        serviceTax,
+        productTax,
+        totalTax: serviceTax + productTax,
+        total: subtotal + serviceTax + productTax,
+        paymentMethod
+      };
+
+      await ipcRenderer.invoke('create-sale', saleData);
+      
+      // Reset form
+      setCartItems([]);
+      setSelectedCustomer(null);
+      setSelectedStylist(null);
+      setPaymentMethod('');
+      
+      alert('Sale completed successfully!');
     } catch (error) {
       console.error('Error completing sale:', error);
+      alert('Error completing sale');
     }
   };
 
@@ -143,7 +190,7 @@ function SalesForm() {
             Sale Information
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Row 1: Customer dropdown and button */}
+            {/* Customer Selection */}
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Autocomplete
                 sx={{ flex: 1 }}
@@ -190,7 +237,7 @@ function SalesForm() {
               </Button>
             </Box>
 
-            {/* Row 2: Stylist dropdown */}
+            {/* Stylist Selection */}
             <Autocomplete
               options={stylists}
               getOptionLabel={(option) =>
@@ -209,8 +256,6 @@ function SalesForm() {
             />
           </Box>
         </Paper>
-
-
 
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
@@ -232,7 +277,7 @@ function SalesForm() {
                 )}
                 onChange={(event, newValue) => {
                   setSelectedService(newValue);
-                  setCustomPrice(newValue ? newValue.price : ''); // Reset or set the default price
+                  setCustomPrice(newValue ? newValue.price : '');
                 }}
               />
             </Grid>
@@ -248,7 +293,7 @@ function SalesForm() {
                 InputProps={{
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                 }}
-                disabled={!selectedService} // Disable if no service is selected
+                disabled={!selectedService}
               />
             </Grid>
 
@@ -266,7 +311,6 @@ function SalesForm() {
             </Grid>
           </Grid>
         </Paper>
-
       </Grid>
 
       {/* Right Section - Cart Summary */}
@@ -311,18 +355,25 @@ function SalesForm() {
               <Typography>Subtotal</Typography>
               <Typography>${subtotal.toFixed(2)}</Typography>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography>Tax</Typography>
-              <Typography>${tax.toFixed(2)}</Typography>
-            </Box>
+            {productTax > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography>Product Tax</Typography>
+                <Typography>${productTax.toFixed(2)}</Typography>
+              </Box>
+            )}
             <Box sx={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               mb: 1,
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              borderTop: 1,
+              borderColor: 'divider',
+              pt: 1
             }}>
-              <Typography>Total</Typography>
-              <Typography>${(subtotal + tax).toFixed(2)}</Typography>
+              <Typography fontWeight="bold">Total</Typography>
+              <Typography fontWeight="bold">
+                ${(subtotal + productTax).toFixed(2)}
+              </Typography>
             </Box>
           </Box>
 
@@ -351,7 +402,7 @@ function SalesForm() {
             fullWidth
             size="large"
             onClick={handleCompleteSale}
-            disabled={cartItems.length === 0 || !paymentMethod}
+            disabled={cartItems.length === 0 || !paymentMethod || !selectedCustomer}
           >
             COMPLETE SALE
           </Button>
