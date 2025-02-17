@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 const { Op } = require('sequelize');
+const _ = require('lodash');
 const { 
   setupDatabase, 
   Client, 
@@ -481,6 +482,53 @@ ipcMain.handle('search-inventory-by-sku', async (event, sku) => {
   }
 });
 
+// In your electron.js file
+ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate }) => {
+  try {
+    // Get all sale items that are products within the date range
+    const salesData = await SaleItem.findAll({
+      where: {
+        itemType: 'product',
+        createdAt: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      include: [
+        {
+          model: Inventory,
+          attributes: ['sku', 'productName']
+        },
+        {
+          model: Sale,
+          attributes: ['saleDate', 'tax']
+        }
+      ]
+    });
+
+    // Group and aggregate the data by product
+    const groupedData = _.groupBy(salesData, item => item.Inventory?.sku);
+
+    const reportData = Object.entries(groupedData).map(([sku, items]) => {
+      const totalSold = items.reduce((sum, item) => sum + item.quantity, 0);
+      const totalCharged = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const taxRate = 0.0725; // Based on the example data
+      const taxCollected = totalCharged * taxRate;
+
+      return {
+        id: sku,
+        description: items[0].Inventory?.productName || 'Unknown Product',
+        totalSold,
+        totalCharged,
+        taxCollected
+      };
+    });
+
+    return reportData;
+  } catch (error) {
+    console.error('Error generating inventory tax report:', error);
+    throw error;
+  }
+});
 
 ipcMain.handle('update-inventory-quantity', async (event, { sku, quantity }) => {
   try {

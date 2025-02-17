@@ -156,7 +156,56 @@ function ReportsModule() {
           </Table>
         </TableContainer>
       );
+      case 'inventory-tax':
+      return (
+        <Box>
+          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+            Inventory Sold Tax Report
+          </Typography>
+          <Typography variant="subtitle2" gutterBottom color="text.secondary">
+            {`${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
+          </Typography>
 
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Item</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell align="right">Total Sold</TableCell>
+                  <TableCell align="right">Total Charged</TableCell>
+                  <TableCell align="right">Total Tax Collected</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {reportData.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.id}</TableCell>
+                    <TableCell>{item.description}</TableCell>
+                    <TableCell align="right">{item.totalSold}</TableCell>
+                    <TableCell align="right">${item.totalCharged.toFixed(2)}</TableCell>
+                    <TableCell align="right">${item.taxCollected.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableHead>
+                <TableRow>
+                  <TableCell colSpan={2}>Totals</TableCell>
+                  <TableCell align="right">
+                    {reportData.reduce((sum, item) => sum + item.totalSold, 0)}
+                  </TableCell>
+                  <TableCell align="right">
+                    ${reportData.reduce((sum, item) => sum + item.totalCharged, 0).toFixed(2)}
+                  </TableCell>
+                  <TableCell align="right">
+                    ${reportData.reduce((sum, item) => sum + item.taxCollected, 0).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+            </Table>
+          </TableContainer>
+        </Box>
+      );
       // Add other report type renderers here
       // ...
     }
