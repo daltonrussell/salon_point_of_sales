@@ -192,10 +192,8 @@ ipcMain.handle('create-stylist', async (event, stylistData) => {
 
 ipcMain.handle('get-stylists', async (event, status = 'all') => {
   try {
-    console.log('Fetching stylists with status:', status);
     const where = status !== 'all' ? { status } : {};
-    console.log('Where clause:', where);
-    
+
     const stylists = await Stylist.findAll({
       where,
       raw: true,
@@ -205,7 +203,6 @@ ipcMain.handle('get-stylists', async (event, status = 'all') => {
       ]
     });
     
-    console.log('Found stylists:', stylists);
     return stylists;
   } catch (error) {
     console.error('Error fetching stylists:', error);
@@ -242,8 +239,8 @@ ipcMain.handle('delete-stylist', async (event, { id }) => {
 });
 
 ipcMain.handle('create-sale', async (event, {
-  clientId,  // Make sure these are being passed
-  stylistId, // from the UI
+  ClientId,  // Make sure these are being passed
+  StylistId, // from the UI
   services,
   products,
   subtotal,
@@ -255,8 +252,8 @@ ipcMain.handle('create-sale', async (event, {
     const result = await sequelize.transaction(async (t) => {
       // Create the sale with client and stylist IDs
       const sale = await Sale.create({
-        clientId,    // This assigns the sale to a client
-        stylistId,   // This assigns the sale to a stylist
+        ClientId,    // This assigns the sale to a client
+        StylistId,   // This assigns the sale to a stylist
         subtotal,
         tax,         // Using tax calculated in UI
         total,
@@ -268,8 +265,8 @@ ipcMain.handle('create-sale', async (event, {
       const serviceItems = await Promise.all(
         services.map(service =>
           SaleItem.create({
-            saleId: sale.id,
-            serviceId: service.serviceId,
+            SaleId: sale.id,  // Changed from saleId to SaleId
+            ServiceId: service.serviceId,  // Changed from serviceId to ServiceId
             price: service.price,
             itemType: 'service',
             quantity: 1
@@ -295,8 +292,8 @@ ipcMain.handle('create-sale', async (event, {
           }, { transaction: t });
 
           return SaleItem.create({
-            saleId: sale.id,
-            inventoryId: product.inventoryId,
+            SaleId: sale.id,  // Changed from saleId to SaleId
+            InventoryId: product.inventoryId,  // Changed from inventoryId to InventoryId
             price: product.price,
             quantity: product.quantity,
             itemType: 'product'
@@ -338,26 +335,16 @@ ipcMain.handle('get-client-sales', async (event, clientId) => {
 // Get stylist sales for reporting
 ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDate }) => {
   try {
-
-    const where = {
-      stylistId,
-      saleDate: {
-        [Op.between]: [startDate, endDate]
-      }
-    };
-
-
+    // Get filtered sales for the specific stylist
+    console.log('\n=== Filtered Sales for Stylist ===');
     const sales = await Sale.findAll({
-      where,
+      where: {
+        StylistId: stylistId,
+        saleDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
       include: [
-        { 
-          model: SaleItem,
-          include: [{
-            model: Service,
-            attributes: ['name', 'price']
-          }],
-          attributes: ['price']
-        },
         {
           model: Client,
           attributes: ['firstName', 'lastName']
@@ -365,72 +352,68 @@ ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDat
         {
           model: Stylist,
           attributes: ['firstName', 'lastName']
+        },
+        {
+          model: SaleItem,
+          as: 'SaleItems',
+          include: [
+            {
+              model: Service,
+              attributes: ['name', 'price']
+            },
+            {
+              model: Inventory,
+              attributes: ['productName', 'salePrice']
+            }
+          ]
         }
-      ],
-      attributes: [
-        'id',
-        'saleDate',
-        'subtotal',
-        'tax',
-        'tip',
-        'total',
-        'paymentMethod'
       ],
       order: [['saleDate', 'DESC']]
     });
 
-    // Simplify the data structure for serialization
-    const simplifiedSales = sales.map(sale => ({
+    console.log('Filtered Sales Results:', sales.map(sale => ({
+      id: sale.id,
+      date: sale.saleDate,
+      total: sale.total,
+      client: sale.Client ? `${sale.Client.firstName} ${sale.Client.lastName}` : 'No client',
+      itemCount: (sale.SaleItems || []).length,
+      items: (sale.SaleItems || []).map(item => ({
+        type: item.itemType,
+        service: item.Service?.name,
+        product: item.Inventory?.productName,
+        price: item.price,
+        quantity: item.quantity
+      }))
+    })));
+
+    // Format the final response
+    const formattedSales = sales.map(sale => ({
       id: sale.id,
       saleDate: sale.saleDate,
-      subtotal: Number(sale.subtotal),
-      tax: Number(sale.tax),
-      tip: Number(sale.tip),
-      total: Number(sale.total),
+      subtotal: sale.subtotal,
+      tax: sale.tax,
+      total: sale.total,
       paymentMethod: sale.paymentMethod,
       client: sale.Client ? `${sale.Client.firstName} ${sale.Client.lastName}` : 'N/A',
       stylist: sale.Stylist ? `${sale.Stylist.firstName} ${sale.Stylist.lastName}` : 'N/A',
-      items: sale.SaleItems.map(item => ({
-        service: item.Service.name,
-        price: Number(item.price)
-      }))
+      items: sale.SaleItems ? sale.SaleItems.map(item => ({
+        type: item.itemType,
+        name: item.itemType === 'service' ? item.Service?.name : item.Inventory?.productName,
+        price: item.price,
+        quantity: item.quantity
+      })) : []
     }));
 
-    console.log(simplifiedSales);
+    console.log('\n=== Final Formatted Response ===');
+    console.log(JSON.stringify(formattedSales, null, 2));
 
-    // Calculate summary
-    const summary = {
-      totalSales: sales.length,
-      totalRevenue: simplifiedSales.reduce((sum, sale) => sum + sale.total, 0),
-      totalTips: simplifiedSales.reduce((sum, sale) => sum + sale.tip, 0),
-      serviceBreakdown: {}
-    };
-
-    // Calculate service breakdown
-    simplifiedSales.forEach(sale => {
-      sale.items.forEach(item => {
-        if (!summary.serviceBreakdown[item.service]) {
-          summary.serviceBreakdown[item.service] = {
-            count: 0,
-            revenue: 0
-          };
-        }
-        summary.serviceBreakdown[item.service].count += 1;
-        summary.serviceBreakdown[item.service].revenue += item.price;
-      });
-    });
-
-    return {
-      sales: simplifiedSales,
-      summary
-    };
+    return formattedSales;
   } catch (error) {
     console.error('Error fetching stylist sales:', error);
     throw error;
   }
 });
-
-  // Inventory IPC Handlers
+// Inventory IPC Handlers
 ipcMain.handle('create-inventory', async (event, inventoryData) => {
   try {
     const inventory = await Inventory.create(inventoryData);

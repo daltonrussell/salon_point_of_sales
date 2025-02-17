@@ -217,8 +217,8 @@ function SalesForm() {
       }));
 
     const saleData = {
-      clientId: selectedCustomer.id,
-      stylistId: selectedStylist?.id,
+      ClientId: selectedCustomer.id,
+      StylistId: selectedStylist.id,
       services,     // Send separated services array
       products,     // Send separated products array
       subtotal,
@@ -226,6 +226,9 @@ function SalesForm() {
       total: subtotal + productTax,
       paymentMethod
     };
+
+    console.log('Sale Data being sent:', saleData);
+
 
     await ipcRenderer.invoke('create-sale', saleData);
 
@@ -311,9 +314,13 @@ function SalesForm() {
                   label="Stylist"
                   variant="outlined"
                   fullWidth
+                  required  // Add this
+                  error={!selectedStylist}  // Add this
+                  helperText={!selectedStylist ? "Stylist is required" : ""}  // Add this
                 />
               )}
               onChange={(event, newValue) => setSelectedStylist(newValue)}
+              value={selectedStylist}  // Add this to make it a controlled component
             />
           </Box>
         </Paper>
@@ -534,7 +541,12 @@ function SalesForm() {
             fullWidth
             size="large"
             onClick={handleCompleteSale}
-            disabled={cartItems.length === 0 || !paymentMethod || !selectedCustomer}
+            disabled={
+              cartItems.length === 0 ||
+              !paymentMethod ||
+              !selectedCustomer ||
+              !selectedStylist
+            }
           >
             COMPLETE SALE
           </Button>

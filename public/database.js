@@ -131,20 +131,50 @@ const SaleItem = sequelize.define('SaleItem', {
   }
 });
 
-// Define relationships
-Sale.belongsTo(Client);
-Sale.belongsTo(Stylist);
-Sale.hasMany(SaleItem);
+// First, define all your models as you have them
+// ... (your existing model definitions)
 
-SaleItem.belongsTo(Sale);
-SaleItem.belongsTo(Service);
-SaleItem.belongsTo(Inventory);
+// Then, define all relationships in one place for clarity
+// Sale and Client relationship
+Sale.belongsTo(Client, {
+  foreignKey: 'ClientId'
+});
+Client.hasMany(Sale, {
+  foreignKey: 'ClientId'
+});
 
-Client.hasMany(Sale);
-Stylist.hasMany(Sale);
+// Sale and Stylist relationship
+Sale.belongsTo(Stylist, {
+  foreignKey: 'StylistId'
+});
+Stylist.hasMany(Sale, {
+  foreignKey: 'StylistId'
+});
 
-Service.hasMany(SaleItem);
-Inventory.hasMany(SaleItem);
+// Sale and SaleItem relationship
+Sale.hasMany(SaleItem, {
+  foreignKey: 'SaleId',
+  as: 'SaleItems'  // This alias helps when querying related items
+});
+SaleItem.belongsTo(Sale, {
+  foreignKey: 'SaleId'
+});
+
+// SaleItem and Service relationship
+SaleItem.belongsTo(Service, {
+  foreignKey: 'ServiceId'
+});
+Service.hasMany(SaleItem, {
+  foreignKey: 'ServiceId'
+});
+
+// SaleItem and Inventory relationship
+SaleItem.belongsTo(Inventory, {
+  foreignKey: 'InventoryId'
+});
+Inventory.hasMany(SaleItem, {
+  foreignKey: 'InventoryId'
+});
 
 async function setupDatabase() {
   try {
@@ -306,8 +336,8 @@ async function seedDatabase() {
     // Create some sample sales with both services and products
     const sales = await Promise.all([
       Sale.create({
-        clientId: clients[0].id,
-        stylistId: stylists[0].id,
+        ClientId: clients[0].id,
+        StylistId: stylists[0].id,
         saleDate: new Date(),
         subtotal: 75.99,
         tax: 6.08,
@@ -315,8 +345,8 @@ async function seedDatabase() {
         paymentMethod: 'Credit Card'
       }),
       Sale.create({
-        clientId: clients[1].id,
-        stylistId: stylists[1].id,
+        ClientId: clients[1].id,
+        StylistId: stylists[1].id,
         saleDate: new Date(),
         subtotal: 145.98,
         tax: 11.68,
@@ -328,29 +358,29 @@ async function seedDatabase() {
     // Create sale items for each sale
     await SaleItem.bulkCreate([
       {
-        saleId: sales[0].id,
-        serviceId: services[0].id,
+        SaleId: sales[0].id,
+        ServiceId: services[0].id,
         price: 45.00,
         quantity: 1,
         itemType: 'service'
       },
       {
-        saleId: sales[0].id,
-        inventoryId: inventoryItems[0].id,
+        SaleId: sales[0].id,
+        InventoryId: inventoryItems[0].id,
         price: 24.99,
         quantity: 1,
         itemType: 'product'
       },
       {
-        saleId: sales[1].id,
-        serviceId: services[2].id,
+        SaleId: sales[1].id,
+        ServiceId: services[2].id,
         price: 85.00,
         quantity: 1,
         itemType: 'service'
       },
       {
-        saleId: sales[1].id,
-        inventoryId: inventoryItems[1].id,
+        SaleId: sales[1].id,
+        InventoryId: inventoryItems[1].id,
         price: 29.99,
         quantity: 2,
         itemType: 'product'
