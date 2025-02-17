@@ -34,12 +34,16 @@ function SalesForm() {
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(0); // 0 for services, 1 for products
-  
+
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedStylist, setSelectedStylist] = useState(null);
+
+  // Add these to your existing state declarations
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productQuantity, setProductQuantity] = useState(1);
 
   // Payment states
   const [subtotal, setSubtotal] = useState(0);
@@ -53,7 +57,18 @@ function SalesForm() {
     loadStylists();
     loadServices();
     loadAllClients();
+    loadProducts();
   }, []);
+
+  const loadProducts = async () => {
+  try {
+    const data = await ipcRenderer.invoke('get-all-inventory');
+    setProducts(data);
+  } catch (error) {
+    console.error('Error loading products:', error);
+  }
+};
+
 
   // Data loading functions
   const loadStylists = async () => {
@@ -99,24 +114,42 @@ function SalesForm() {
   };
 
   // Cart management
-  const addToCart = () => {
-    if (selectedService && selectedStylist) {
-      const newItem = {
-        id: Date.now(),
-        type: 'service',
-        service: {
-          ...selectedService,
-          price: parseFloat(customPrice) || selectedService.price,
-        },
-        stylist: selectedStylist,
-      };
-      const updatedCart = [...cartItems, newItem];
-      setCartItems(updatedCart);
-      updateTotals(updatedCart);
-      setSelectedService(null);
-      setCustomPrice('');
-    }
-  };
+  const addToCart = (type) => {
+  if (type === 'service' && selectedService && selectedStylist) {
+    // For services, add a top-level price for easier access
+    const servicePrice = parseFloat(customPrice) || selectedService.price;
+    const newItem = {
+      id: Date.now(),
+      type: 'service',
+      service: {
+        ...selectedService,
+        price: servicePrice,
+      },
+      stylist: selectedStylist,
+      price: servicePrice,  // Add price here at the top level
+      quantity: 1
+    };
+    const updatedCart = [...cartItems, newItem];
+    setCartItems(updatedCart);
+    updateTotals(updatedCart);
+    setSelectedService(null);
+    setCustomPrice('');
+  } else if (type === 'product' && selectedProduct) {
+    const productPrice = selectedProduct.salePrice * productQuantity;
+    const newItem = {
+      id: Date.now(),
+      type: 'product',
+      product: selectedProduct,
+      quantity: productQuantity,
+      price: productPrice
+    };
+    const updatedCart = [...cartItems, newItem];
+    setCartItems(updatedCart);
+    updateTotals(updatedCart);
+    setSelectedProduct(null);
+    setProductQuantity(1);
+  }
+};
 
   const removeFromCart = (itemId) => {
     const updatedCart = cartItems.filter(item => item.id !== itemId);
@@ -145,41 +178,49 @@ function SalesForm() {
   };
 
   const handleCompleteSale = async () => {
-    try {
-      const saleData = {
-        clientId: selectedCustomer.id,
-        stylistId: selectedStylist?.id,
-        items: cartItems.map(item => ({
-          type: item.type,
-          price: item.type === 'service' ? item.service.price : item.price,
-          quantity: item.quantity || 1,
-          ...(item.type === 'service' 
-            ? { serviceId: item.service.id }
-            : { inventoryId: item.product.id }
-          )
-        })),
-        subtotal,
-        serviceTax,
-        productTax,
-        totalTax: serviceTax + productTax,
-        total: subtotal + serviceTax + productTax,
-        paymentMethod
-      };
+  try {
+    // Separate cart items into services and products
+    const services = cartItems
+      .filter(item => item.type === 'service')
+      .map(item => ({
+        serviceId: item.service.id,
+        price: item.service.price,
+        quantity: 1
+      }));
 
-      await ipcRenderer.invoke('create-sale', saleData);
-      
-      // Reset form
-      setCartItems([]);
-      setSelectedCustomer(null);
-      setSelectedStylist(null);
-      setPaymentMethod('');
-      
-      alert('Sale completed successfully!');
-    } catch (error) {
-      console.error('Error completing sale:', error);
-      alert('Error completing sale');
-    }
-  };
+    const products = cartItems
+      .filter(item => item.type === 'product')
+      .map(item => ({
+        inventoryId: item.product.id,
+        price: item.price,
+        quantity: item.quantity
+      }));
+
+    const saleData = {
+      clientId: selectedCustomer.id,
+      stylistId: selectedStylist?.id,
+      services,     // Send separated services array
+      products,     // Send separated products array
+      subtotal,
+      tax: productTax,
+      total: subtotal + productTax,
+      paymentMethod
+    };
+
+    await ipcRenderer.invoke('create-sale', saleData);
+
+    // Reset form
+    setCartItems([]);
+    setSelectedCustomer(null);
+    setSelectedStylist(null);
+    setPaymentMethod('');
+
+    alert('Sale completed successfully!');
+  } catch (error) {
+    console.error('Error completing sale:', error);
+    alert('Error completing sale');
+  }
+};
 
   return (
     <Grid container spacing={3}>
@@ -257,7 +298,8 @@ function SalesForm() {
           </Box>
         </Paper>
 
-        <Paper sx={{ p: 3 }}>
+        {/* Services Section */}
+        <Paper sx={{ p: 3, mb: 3 }}>  {/* Added margin bottom */}
           <Typography variant="h6" gutterBottom>
             Services
           </Typography>
@@ -301,12 +343,78 @@ function SalesForm() {
             <Grid item xs={4}>
               <Button
                 variant="contained"
-                onClick={addToCart}
+                onClick={() => addToCart('service')}
                 disabled={!selectedService || !selectedStylist}
                 fullWidth
                 sx={{ height: '56px' }}
               >
-                ADD
+                ADD SERVICE
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* Products Section */}
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Products
+          </Typography>
+          <Grid container spacing={2} alignItems="flex-start">
+            {/* Product Dropdown */}
+            <Grid item xs={4}>
+              <Autocomplete
+                options={products}
+                getOptionLabel={(option) =>
+                  option ? `${option.productName} - $${option.salePrice}` : ''
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Product"
+                    variant="outlined"
+                    fullWidth
+                  />
+                )}
+                onChange={(event, newValue) => setSelectedProduct(newValue)}
+                renderOption={(props, option) => (
+                  <li {...props}>
+                    <div>
+                      <Typography>{option.productName}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Stock: {option.quantity} - ${option.salePrice}
+                      </Typography>
+                    </div>
+                  </li>
+                )}
+              />
+            </Grid>
+
+            {/* Quantity Input */}
+            <Grid item xs={4}>
+              <TextField
+                label="Quantity"
+                type="number"
+                variant="outlined"
+                fullWidth
+                value={productQuantity}
+                onChange={(e) => setProductQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                InputProps={{
+                  inputProps: { min: 1, max: selectedProduct?.quantity || 1 }
+                }}
+                disabled={!selectedProduct}
+              />
+            </Grid>
+
+            {/* Add Button */}
+            <Grid item xs={4}>
+              <Button
+                variant="contained"
+                onClick={() => addToCart('product')}
+                disabled={!selectedProduct || productQuantity < 1}
+                fullWidth
+                sx={{ height: '56px' }}
+              >
+                ADD PRODUCT
               </Button>
             </Grid>
           </Grid>
@@ -323,22 +431,26 @@ function SalesForm() {
           {/* Cart Items */}
           <Box sx={{ mb: 3 }}>
             {cartItems.map((item) => (
-              <Box 
-                key={item.id} 
-                sx={{ 
-                  display: 'flex', 
+              <Box
+                key={item.id}
+                sx={{
+                  display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  mb: 1 
+                  mb: 1
                 }}
               >
                 <Typography>
-                  {item.service.name} - {item.stylist.firstName}
+                  {item.type === 'service' ? (
+                    `${item.service.name} - ${item.stylist.firstName}`
+                  ) : (
+                    `${item.product.productName} (x${item.quantity})`
+                  )}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography>${item.service.price}</Typography>
-                  <Button 
-                    size="small" 
+                  <Typography>${item.price.toFixed(2)}</Typography>
+                  <Button
+                    size="small"
                     color="error"
                     onClick={() => removeFromCart(item.id)}
                   >
