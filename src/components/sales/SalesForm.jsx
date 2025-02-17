@@ -25,7 +25,7 @@ const paymentMethods = [
   'Debit Card',
 ];
 
-const TAX_RATE = 0.08; // 8% tax rate for products only
+
 
 function SalesForm() {
   // Data states
@@ -34,6 +34,11 @@ function SalesForm() {
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+   const [taxRate, setTaxRate] = useState(() => {
+    const savedRate = localStorage.getItem('taxRate');
+    return savedRate ? parseFloat(savedRate) / 100 : 0.08;
+  });
 
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -69,6 +74,21 @@ function SalesForm() {
   }
 };
 
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'taxRate') {
+        setTaxRate(parseFloat(e.newValue) / 100);
+      }
+    };
+
+    // Listen for changes to localStorage (in case tax rate is updated in settings)
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   // Data loading functions
   const loadStylists = async () => {
@@ -170,7 +190,7 @@ function SalesForm() {
       }
     });
 
-    const newProductTax = newProductSubtotal * TAX_RATE;
+    const newProductTax = newProductSubtotal * taxRate;
     
     setSubtotal(newServiceSubtotal + newProductSubtotal);
     setProductTax(newProductTax);
