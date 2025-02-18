@@ -5,17 +5,10 @@ import InventoryTaxTable from './InventoryTaxTable';
 import {
   Box,
   Paper,
-  Typography,
   Grid,
   Autocomplete,
   TextField,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   MenuItem,
   Select,
   FormControl,
@@ -24,14 +17,12 @@ import {
 const { ipcRenderer } = window.require('electron');
 
 function ReportsModule() {
-  // Existing states
+  // States
   const [stylists, setStylists] = useState([]);
   const [selectedStylist, setSelectedStylist] = useState(null);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState(null);
-
-  // New state for report type
   const [reportType, setReportType] = useState('stylist-sales');
 
   // Report type options
@@ -59,36 +50,39 @@ function ReportsModule() {
     try {
       let result;
 
-      // Different API calls based on report type
+      // Create dates with specific times
+      const startDateTime = new Date(startDate + 'T00:01:00');
+      const endDateTime = new Date(endDate + 'T23:59:59.999');
+
       switch (reportType) {
         case 'stylist-sales':
           result = await ipcRenderer.invoke('get-stylist-sales', {
             stylistId: selectedStylist?.id,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
+            startDate: startDateTime,
+            endDate: endDateTime
           });
           break;
 
         case 'inventory-tax':
           result = await ipcRenderer.invoke('get-inventory-tax-report', {
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
+            startDate: startDateTime,
+            endDate: endDateTime
           });
           break;
 
         case 'clients-served':
           result = await ipcRenderer.invoke('get-clients-served-report', {
             stylistId: selectedStylist?.id,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
+            startDate: startDateTime,
+            endDate: endDateTime
           });
           break;
 
         case 'commission-tips':
           result = await ipcRenderer.invoke('get-commission-report', {
             stylistId: selectedStylist?.id,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
+            startDate: startDateTime,
+            endDate: endDateTime
           });
           break;
       }
@@ -100,31 +94,32 @@ function ReportsModule() {
     }
   };
 
-  // Render different report content based on type
-  // In your ReportsModule.js
   const renderReportContent = () => {
     if (!reportData) return null;
+
+    // Create dates with specific times for display
+    const startDateTime = new Date(startDate + 'T00:01:00');
+    const endDateTime = new Date(endDate + 'T23:59:59.999');
 
     switch (reportType) {
       case 'stylist-sales':
         return <StylistSalesTable
           data={reportData || []}
-          startDate={startDate}
-          endDate={endDate}
+          startDate={startDateTime}
+          endDate={endDateTime}
         />;
 
       case 'inventory-tax':
         return <InventoryTaxTable
           data={reportData || []}
-          startDate={startDate}
-          endDate={endDate}
+          startDate={startDateTime}
+          endDate={endDateTime}
         />;
 
       default:
         return null;
     }
   };
-
 
   return (
     <Box>
@@ -147,7 +142,6 @@ function ReportsModule() {
             </FormControl>
           </Grid>
 
-          {/* Show stylist selector only for relevant reports */}
           {['stylist-sales', 'clients-served', 'commission-tips'].includes(reportType) && (
             <Grid item xs={3}>
               <Autocomplete
@@ -215,8 +209,8 @@ function ReportsModule() {
           <PDFTableExport
             data={reportData}
             reportType={reportType}
-            startDate={startDate}
-            endDate={endDate}
+            startDate={startDate + 'T00:01:00'}
+            endDate={endDate + 'T23:59:59.999'}
           />
         </Paper>
       )}
