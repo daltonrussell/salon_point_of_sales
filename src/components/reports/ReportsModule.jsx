@@ -131,7 +131,13 @@ function ReportsModule() {
               <Select
                 value={reportType}
                 label="Report Type"
-                onChange={(e) => setReportType(e.target.value)}
+                onChange={(e) =>
+                {
+                  setReportData(null)
+                  setReportType(e.target.value)
+                }
+              }
+
               >
                 {reportTypes.map(type => (
                   <MenuItem key={type.value} value={type.value}>

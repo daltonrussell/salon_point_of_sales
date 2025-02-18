@@ -33,6 +33,8 @@ function SalesForm() {
   const [services, setServices] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [serviceKey, setServiceKey] = useState(0);
+  const [productKey, setProductKey] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
    const [taxRate, setTaxRate] = useState(() => {
@@ -134,9 +136,8 @@ function SalesForm() {
   };
 
   // Cart management
-  const addToCart = (type) => {
+const addToCart = (type) => {
   if (type === 'service' && selectedService && selectedStylist) {
-    // For services, add a top-level price for easier access
     const servicePrice = parseFloat(customPrice) || selectedService.price;
     const newItem = {
       id: Date.now(),
@@ -146,7 +147,7 @@ function SalesForm() {
         price: servicePrice,
       },
       stylist: selectedStylist,
-      price: servicePrice,  // Add price here at the top level
+      price: servicePrice,
       quantity: 1
     };
     const updatedCart = [...cartItems, newItem];
@@ -154,6 +155,7 @@ function SalesForm() {
     updateTotals(updatedCart);
     setSelectedService(null);
     setCustomPrice('');
+    setServiceKey(prev => prev + 1); // Add this line
   } else if (type === 'product' && selectedProduct) {
     const productPrice = selectedProduct.salePrice * productQuantity;
     const newItem = {
@@ -168,9 +170,9 @@ function SalesForm() {
     updateTotals(updatedCart);
     setSelectedProduct(null);
     setProductQuantity(1);
+    setProductKey(prev => prev + 1); // Add this line
   }
 };
-
   const removeFromCart = (itemId) => {
     const updatedCart = cartItems.filter(item => item.id !== itemId);
     setCartItems(updatedCart);
@@ -315,8 +317,6 @@ function SalesForm() {
                   variant="outlined"
                   fullWidth
                   required  // Add this
-                  error={!selectedStylist}  // Add this
-                  helperText={!selectedStylist ? "Stylist is required" : ""}  // Add this
                 />
               )}
               onChange={(event, newValue) => setSelectedStylist(newValue)}
@@ -334,6 +334,7 @@ function SalesForm() {
             {/* Service Dropdown */}
             <Grid item xs={4}>
               <Autocomplete
+                key={serviceKey}
                 options={services}
                 getOptionLabel={(option) => (option ? `${option.name} - $${option.price}` : '')}
                 renderInput={(params) => (
@@ -390,6 +391,7 @@ function SalesForm() {
             {/* Product Dropdown */}
             <Grid item xs={4}>
               <Autocomplete
+                key={productKey}
                 options={products}
                 getOptionLabel={(option) =>
                   option ? `${option.productName} - $${option.salePrice}` : ''
