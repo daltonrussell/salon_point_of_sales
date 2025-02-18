@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import PDFTableExport from './PDFTableExport';
+import StylistSalesTable from './StylistSalesTable';
+import InventoryTaxTable from './InventoryTaxTable';
 import {
   Box,
   Paper,
@@ -98,118 +101,30 @@ function ReportsModule() {
   };
 
   // Render different report content based on type
+  // In your ReportsModule.js
   const renderReportContent = () => {
     if (!reportData) return null;
 
     switch (reportType) {
       case 'stylist-sales':
-      return (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Client</TableCell>
-                <TableCell>Items</TableCell>
-                <TableCell align="right">Subtotal</TableCell>
-                <TableCell align="right">Tax</TableCell>
-                <TableCell align="right">Total</TableCell>
-                <TableCell>Payment Method</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {reportData.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{sale.client}</TableCell>
-                  <TableCell>
-                    {sale.items.map((item, index) => (
-                      <div key={index}>
-                        {item.name} ({item.type})
-                        - ${item.price.toFixed(2)}
-                        {item.quantity > 1 && ` x${item.quantity}`}
-                      </div>
-                    ))}
-                  </TableCell>
-                  <TableCell align="right">${sale.subtotal.toFixed(2)}</TableCell>
-                  <TableCell align="right">${sale.tax.toFixed(2)}</TableCell>
-                  <TableCell align="right">${sale.total.toFixed(2)}</TableCell>
-                  <TableCell>{sale.paymentMethod}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableHead>
-              <TableRow>
-                <TableCell colSpan={3}>Totals</TableCell>
-                <TableCell align="right">
-                  ${reportData.reduce((sum, sale) => sum + sale.subtotal, 0).toFixed(2)}
-                </TableCell>
-                <TableCell align="right">
-                  ${reportData.reduce((sum, sale) => sum + sale.tax, 0).toFixed(2)}
-                </TableCell>
-                <TableCell align="right">
-                  ${reportData.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}
-                </TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-          </Table>
-        </TableContainer>
-      );
-      case 'inventory-tax':
-      return (
-        <Box>
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Inventory Sold Tax Report
-          </Typography>
-          <Typography variant="subtitle2" gutterBottom color="text.secondary">
-            {`${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
-          </Typography>
+        return <StylistSalesTable
+          data={reportData || []}
+          startDate={startDate}
+          endDate={endDate}
+        />;
 
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Item</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell align="right">Total Sold</TableCell>
-                  <TableCell align="right">Total Charged</TableCell>
-                  <TableCell align="right">Total Tax Collected</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {reportData.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.id}</TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell align="right">{item.totalSold}</TableCell>
-                    <TableCell align="right">${item.totalCharged.toFixed(2)}</TableCell>
-                    <TableCell align="right">${item.taxCollected.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableHead>
-                <TableRow>
-                  <TableCell colSpan={2}>Totals</TableCell>
-                  <TableCell align="right">
-                    {reportData.reduce((sum, item) => sum + item.totalSold, 0)}
-                  </TableCell>
-                  <TableCell align="right">
-                    ${reportData.reduce((sum, item) => sum + item.totalCharged, 0).toFixed(2)}
-                  </TableCell>
-                  <TableCell align="right">
-                    ${reportData.reduce((sum, item) => sum + item.taxCollected, 0).toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-            </Table>
-          </TableContainer>
-        </Box>
-      );
-      // Add other report type renderers here
-      // ...
+      case 'inventory-tax':
+        return <InventoryTaxTable
+          data={reportData || []}
+          startDate={startDate}
+          endDate={endDate}
+        />;
+
+      default:
+        return null;
     }
   };
+
 
   return (
     <Box>
@@ -294,7 +209,15 @@ function ReportsModule() {
 
       {reportData && (
         <Paper sx={{ p: 3 }}>
-          {renderReportContent()}
+          <div id="report-content">
+            {renderReportContent()}
+          </div>
+          <PDFTableExport
+            data={reportData}
+            reportType={reportType}
+            startDate={startDate}
+            endDate={endDate}
+          />
         </Paper>
       )}
     </Box>
