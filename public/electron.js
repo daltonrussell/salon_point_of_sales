@@ -321,7 +321,7 @@ ipcMain.handle('get-client-sales', async (event, clientId) => {
     const sales = await Sale.findAll({
       where: { clientId },
       include: [
-        { model: SaleItem, include: [Service] },
+        { model: SaleItem , include: [Service] },
         { model: Stylist }
       ],
       order: [['saleDate', 'DESC']]
@@ -530,6 +530,78 @@ ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate })
   }
 });
 
+// Add this to your electron.js file
+ipcMain.handle('get-clients-served-report', async (event, { startDate, endDate }) => {
+  try {
+    const sales = await Sale.findAll({
+      where: {
+        saleDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      include: [
+        {
+          model: Client,
+          attributes: ['firstName', 'lastName']
+        },
+        {
+          model: Stylist,
+          attributes: ['firstName', 'lastName']
+        },
+        {
+          model: SaleItem,
+          as: 'SaleItems',
+          include: [
+            {
+              model: Service,
+              attributes: ['name', 'price']
+            }
+          ]
+        }
+      ],
+      order: [
+        ['saleDate', 'ASC'],
+        ['Client', 'lastName', 'ASC'],
+        ['Client', 'firstName', 'ASC']
+      ]
+    });
+
+    // Format the data to match the report structure
+    const formattedData = sales.map(sale => ({
+      date: sale.saleDate,
+      client: {
+        firstName: sale.Client.firstName,
+        lastName: sale.Client.lastName
+      },
+      services: sale.SaleItems.map(item => ({
+        stylist: {
+          firstName: sale.Stylist.firstName,
+          lastName: sale.Stylist.lastName
+        },
+        description: item.Service?.name || 'Unknown Service',
+        quantity: item.quantity,
+        price: item.price
+      })),
+      total: sale.total,
+      payments: {
+        cash: sale.paymentMethod === 'Cash' ? sale.total : 0,
+        check: sale.paymentMethod === 'Check' ? sale.total : 0,
+        creditCard: sale.paymentMethod === 'Credit Card' ? sale.total : 0,
+        giftCard: sale.paymentMethod === 'Gift Card' ? sale.total : 0,
+        coupon: 0,
+        points: 0,
+        tips: 0,
+        change: 0
+      }
+    }));
+
+    return formattedData;
+
+  } catch (error) {
+    console.error('Error fetching clients served report:', error);
+    throw error;
+  }
+});
 ipcMain.handle('update-inventory-quantity', async (event, { sku, quantity }) => {
   try {
     // Find the inventory item by SKU

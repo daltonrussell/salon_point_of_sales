@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PDFTableExport from './PDFTableExport';
 import StylistSalesTable from './StylistSalesTable';
 import InventoryTaxTable from './InventoryTaxTable';
+import ClientsServedTable from './ClientsServedTable';
 import {
   Box,
   Paper,
@@ -72,7 +73,6 @@ function ReportsModule() {
 
         case 'clients-served':
           result = await ipcRenderer.invoke('get-clients-served-report', {
-            stylistId: selectedStylist?.id,
             startDate: startDateTime,
             endDate: endDateTime
           });
@@ -103,14 +103,21 @@ function ReportsModule() {
 
     switch (reportType) {
       case 'stylist-sales':
-        return <StylistSalesTable
+      return <StylistSalesTable
+        data={reportData || []}
+        startDate={startDateTime}
+        endDate={endDateTime}
+      />;
+
+      case 'inventory-tax':
+        return <InventoryTaxTable
           data={reportData || []}
           startDate={startDateTime}
           endDate={endDateTime}
         />;
 
-      case 'inventory-tax':
-        return <InventoryTaxTable
+      case 'clients-served':
+        return <ClientsServedTable
           data={reportData || []}
           startDate={startDateTime}
           endDate={endDateTime}
@@ -148,7 +155,7 @@ function ReportsModule() {
             </FormControl>
           </Grid>
 
-          {['stylist-sales', 'clients-served', 'commission-tips'].includes(reportType) && (
+          {['stylist-sales', 'commission-tips'].includes(reportType) && (
             <Grid item xs={3}>
               <Autocomplete
                 options={stylists}
@@ -197,7 +204,7 @@ function ReportsModule() {
               onClick={generateReport}
               disabled={
                 !startDate || !endDate ||
-                (['stylist-sales', 'clients-served', 'commission-tips'].includes(reportType) && !selectedStylist)
+                (['stylist-sales', 'commission-tips'].includes(reportType) && !selectedStylist)
               }
               fullWidth
             >
