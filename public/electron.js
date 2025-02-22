@@ -14,7 +14,13 @@ const {
 
 let mainWindow;
 
+
+console.log('Starting application...');
+console.log('Is Dev:', isDev);
+console.log('Current directory:', __dirname);
+console.log('Database location:', require('./database').DB_PATH);
 function createWindow() {
+  console.log('Creating window...');
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -24,11 +30,19 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadURL(
-    isDev
-      ? 'http://localhost:3000'
-      : `file://${path.join(__dirname, '../build/index.html')}`
-  );
+  const startUrl = isDev
+    ? 'http://localhost:3000'
+    : `file://${path.join(__dirname, '../build/index.html')}`;
+  
+  console.log('Loading URL:', startUrl);
+
+  mainWindow.loadURL(startUrl).catch(err => {
+    console.error('Failed to load URL:', err);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
 
   if (isDev) {
     mainWindow.webContents.openDevTools();

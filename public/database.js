@@ -2,12 +2,18 @@ const { Sequelize, DataTypes } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+const DB_PATH = path.resolve(__dirname, 'database.sqlite');
 
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: DB_PATH,
-  logging: console.log
+  dialectModule: require('better-sqlite3'),  // Add this line to use better-sqlite3
+  logging: console.log,
+  dialectOptions: {
+    // better-sqlite3 specific options
+    timeout: 5000,
+    verbose: console.log
+  }
 });
 
 const Client = sequelize.define('Client', {
@@ -180,6 +186,12 @@ async function setupDatabase() {
   try {
     let needsInitialData = false;
     
+    // Ensure the directory exists
+    const dbDir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    
     if (fs.existsSync(DB_PATH)) {
       try {
         await sequelize.authenticate();
@@ -197,7 +209,7 @@ async function setupDatabase() {
     if (needsInitialData) {
       console.log('Database needs initialization...');
       await sequelize.sync({ force: true });
-      await seedDatabase(); // Add this line
+      await seedDatabase();
     } else {
       await sequelize.sync();
     }
@@ -394,6 +406,11 @@ async function seedDatabase() {
     throw error;
   }
 }
+
+// If you're using this in an Electron app, add this to handle process termination
+process.on('exit', () => {
+  sequelize.close();
+});
 
 module.exports = {
   sequelize,

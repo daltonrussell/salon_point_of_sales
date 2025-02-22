@@ -4,11 +4,16 @@
   "description": "Todo List Application",
   "main": "public/electron.js",
   "private": true,
+  "author": {
+    "name": "Salon Test Developer",
+    "email": "test@example.com"
+  },
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.0",
     "@mui/material": "^5.14.0",
+    "better-sqlite3": "^9.4.0",
     "electron-is-dev": "^2.0.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
@@ -17,13 +22,15 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "sequelize": "^6.32.1",
-    "sqlite3": "^5.1.6"
+    "sequelize": "^6.32.1"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3",
     "electron": "^25.3.0",
     "electron-builder": "^24.6.0",
+    "electron-rebuild": "^3.2.9",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.3",
     "prettier": "^3.5.1",
@@ -34,21 +41,36 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-pack": "npm run build && electron-builder -w",
-    "preelectron-pack": "npm run build"
+    "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && sleep 2 && electron .\"",
+    "electron-pack": "npm run build && electron-builder -w --dir",
+    "postinstall": "electron-builder install-app-deps && npm run rebuild",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "build": {
     "appId": "com.salon-test",
+    "productName": "Salon Test",
     "files": [
       "build/**/*",
+      "public/**/*",
+      "src/**/*",
       "node_modules/**/*"
     ],
     "directories": {
-      "buildResources": "assets"
+      "buildResources": "assets",
+      "output": "dist"
     },
     "win": {
-      "target": "nsis"
+      "target": "portable"
+    },
+    "asar": false,
+    "extraResources": [
+      {
+        "from": "./src/database.sqlite",
+        "to": "database.sqlite"
+      }
+    ],
+    "extraMetadata": {
+      "main": "build/electron.js"
     }
   },
   "eslintConfig": {
