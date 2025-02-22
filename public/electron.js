@@ -1,5 +1,15 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const debugLog = path.join(app.getPath('userData'), 'debug.log');
+
+function log(...args) {
+  const message = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg) : arg
+  ).join(' ');
+  fs.appendFileSync(debugLog, `${new Date().toISOString()}: ${message}\n`);
+  console.log(...args);
+}
 const isDev = require('electron-is-dev');
 const { Op } = require('sequelize');
 const _ = require('lodash');
@@ -15,12 +25,12 @@ const {
 let mainWindow;
 
 
-console.log('Starting application...');
-console.log('Is Dev:', isDev);
-console.log('Current directory:', __dirname);
-console.log('Database location:', require('./database').DB_PATH);
+log('Starting application...');
+log('Is Dev:', isDev);
+log('Current directory:', __dirname);
+log('Database location:', require('./database').DB_PATH);
 function createWindow() {
-  console.log('Creating window...');
+  log('Creating window...');
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -34,14 +44,14 @@ function createWindow() {
     ? 'http://localhost:3000'
     : `file://${__dirname}/../build/index.html')}`;
   
-  console.log('Loading URL:', startUrl);
+  log('Loading URL:', startUrl);
 
   mainWindow.loadURL(startUrl).catch(err => {
-    console.error('Failed to load URL:', err);
+    log('Failed to load URL:', err);
   });
 
   mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
-    console.error('Failed to load:', errorCode, errorDescription);
+    log('Failed to load:', errorCode, errorDescription);
   });
 
   if (isDev) {
