@@ -48,7 +48,6 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      devTools: true
     }
   });
 
@@ -518,6 +517,257 @@ ipcMain.handle('update-inventory-quantity', async (event, { sku, quantity }) => 
     return inventory.value();
   } catch (error) {
     log('Error updating inventory quantity:', error);
+    throw error;
+  }
+});
+
+// Add these handlers right after the other IPC handlers in your main process file
+
+// Inventory Handlers
+ipcMain.handle('get-all-inventory', async () => {
+  try {
+    return db.get('inventory')
+      .orderBy(['productName'], ['asc'])
+      .value();
+  } catch (error) {
+    log('Error fetching all inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('create-inventory', async (event, inventoryData) => {
+  try {
+    const item = {
+      id: generateId(),
+      ...inventoryData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('inventory').push(item).write();
+    return item;
+  } catch (error) {
+    log('Error creating inventory item:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('search-inventory', async (event, searchTerm) => {
+  try {
+    const searchTermLower = searchTerm.toLowerCase();
+    return db.get('inventory')
+      .filter(item => 
+        item.productName.toLowerCase().includes(searchTermLower) ||
+        item.manufacturer.toLowerCase().includes(searchTermLower) ||
+        item.sku.toLowerCase().includes(searchTermLower)
+      )
+      .value();
+  } catch (error) {
+    log('Error searching inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('search-inventory-by-sku', async (event, sku) => {
+  try {
+    return db.get('inventory')
+      .filter(item => item.sku.toLowerCase() === sku.toLowerCase())
+      .value();
+  } catch (error) {
+    log('Error searching inventory by SKU:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
+  log('Starting print receipt process...');
+  
+  try {
+    log('Creating print window...');
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    // Get printer list and find our SNBC printer
+    const printers = await printWindow.webContents.getPrinters();
+    const receiptPrinter = printers.find(p => p.name === 'BTP-M280(U) 1');
+    
+    if (!receiptPrinter) {
+      throw new Error('Receipt printer not found');
+    }
+    
+    log('Found receipt printer:', receiptPrinter.name);
+
+    // Create receipt content with receipt-specific styling
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            /* Reset default spacing */
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+    
+            /* Base styles with 150% larger font size */
+            body {
+              font-family: monospace;
+              width: 280px;
+              /* Base font size increased by 150% */
+              font-size: 18pt;
+              line-height: 1.3;
+              /* Remove any default body margins */
+              margin: 0;
+              padding: 0;
+              /* Ensure content starts at the very top */
+              position: absolute;
+              top: 0;
+              left: 0;
+            }
+    
+            /* Header styling - 150% larger than previous */
+            .header {
+              text-align: center;
+              font-size: 21pt;
+              font-weight: bold;
+              /* Reduced top margin to minimize initial gap */
+              margin: 0 0 5px 0;
+            }
+    
+            /* Utility classes */
+            .center { 
+              text-align: center; 
+            }
+            .bold { 
+              font-weight: bold; 
+            }
+            .large-text {
+              font-size: 21pt;
+            }
+            .divider { 
+              border-top: 1px dashed black; 
+              margin: 5px 0;
+            }
+    
+            /* Item styling */
+            .item {
+              margin: 5px 0;
+              font-size: 18pt;
+            }
+    
+            /* Totals section */
+            .totals {
+              font-size: 19pt;
+              margin: 5px 0;
+            }
+    
+            /* Footer styling */
+            .footer {
+              text-align: center;
+              font-size: 18pt;
+              margin: 5px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            ${businessInfo.name}
+            <br>${businessInfo.address.replace('\n', '<br>')}
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="item">
+            Date: ${new Date().toLocaleString()}<br>
+            Payment: ${saleData.paymentMethod}
+          </div>
+          
+          <div class="divider"></div>
+          
+          ${saleData.services.map(service => `
+            <div class="item">
+              <span class="bold">Service #${service.serviceId}</span>
+              <br>Price: $${service.price.toFixed(2)}
+            </div>
+          `).join('<div class="divider"></div>')}
+          
+          ${saleData.products.length > 0 ? `
+            <div class="divider"></div>
+            <div class="bold large-text">Products</div>
+            ${saleData.products.map(product => `
+              <div class="item">
+                #${product.inventoryId} (x${product.quantity})
+                <br>Price: $${product.price.toFixed(2)}
+              </div>
+            `).join('<div class="divider"></div>')}
+          ` : ''}
+          
+          <div class="divider"></div>
+          
+          <div class="totals bold">
+            Subtotal: $${saleData.subtotal.toFixed(2)}<br>
+            Tax: $${saleData.tax.toFixed(2)}<br>
+            <div class="large-text">Total: $${saleData.total.toFixed(2)}</div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="footer">
+            Thank you for your business!
+          </div>
+        </body>
+      </html>
+    `;
+
+    log('Loading receipt content...');
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    // Create a promise to handle the print completion
+    const printPromise = new Promise((resolve, reject) => {
+      printWindow.webContents.print({
+        silent: true,
+        printBackground: false,
+        deviceName: receiptPrinter.name,
+        color: false,
+        margins: {
+          marginType: 'custom',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0
+        },
+        pageSize: {
+          width: 80000,  // 80mm in microns (this is fine as it's well above minimum)
+          height: 50000  // Setting a fixed height that's well above the minimum 352 microns
+                   // The printer will still cut the paper at the end of content
+        }
+      }, (success, failureReason) => {
+        if (success) {
+          log('Print job sent successfully');
+          resolve();
+        } else {
+          log('Print failed:', failureReason);
+          reject(new Error(`Printing failed: ${failureReason}`));
+        }
+      });
+    });
+
+    // Wait for print job to be sent
+    await printPromise;
+    
+    // Give the printer a moment to process before closing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    printWindow.close();
+    log('Print window closed after successful print');
+
+    return { success: true };
+  } catch (error) {
+    log('Error during printing:', error);
     throw error;
   }
 });

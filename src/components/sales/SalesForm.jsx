@@ -234,6 +234,14 @@ const addToCart = (type) => {
 
     await ipcRenderer.invoke('create-sale', saleData);
 
+    await ipcRenderer.invoke('print-receipt', {
+      saleData,
+      businessInfo: {
+        name: "A New You",
+        address: "107 S 2nd St\nIronton, OH 45432",
+      }
+    });
+
     // Reset form
     setCartItems([]);
     setSelectedCustomer(null);
