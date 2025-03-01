@@ -1,407 +1,160 @@
-const { Sequelize, DataTypes } = require('sequelize');
+const low = require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync');
 const path = require('path');
-const fs = require('fs');
+const { app } = require('electron');
+const isDev = require('electron-is-dev');
 
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+// Set up the database path
+const DB_PATH = isDev 
+  ? path.join(__dirname, '..', 'src', 'database.json')
+  : path.join(app.getPath('userData'), 'database.json');
 
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: DB_PATH,
-  logging: console.log
-});
+const adapter = new FileSync(DB_PATH);
+const db = low(adapter);
 
-const Client = sequelize.define('Client', {
-  firstName: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
-  },
-  lastName: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
-  },
-  phone: DataTypes.STRING,
-  email: DataTypes.STRING,
-  address: DataTypes.TEXT,
-});
+// Initialize with default structure matching your current schema
+db.defaults({
+  clients: [], // stores Client records
+  stylists: [], // stores Stylist records
+  services: [], // stores Service records
+  sales: [], // stores Sale records
+  saleItems: [], // stores SaleItem records
+  inventory: [] // stores Inventory records
+}).write();
 
-const Stylist = sequelize.define('Stylist', {
-  firstName: {
-    type: DataTypes.STRING,
-    allowNull: false,
+// Helper to generate IDs
+const generateId = () => Date.now().toString();
+
+// Client model operations
+const Client = {
+  create: (data) => {
+    const client = {
+      id: generateId(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone || null,
+      email: data.email || null,
+      address: data.address || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('clients').push(client).write();
+    return client;
   },
-  lastName: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  status: {
-    type: DataTypes.ENUM('active', 'inactive'),
-    defaultValue: 'active',
-  },
-}, {
-  indexes: [
-    {
-      fields: ['status']
+  findAll: (options = {}) => {
+    let query = db.get('clients');
+    if (options.order) {
+      const [field, direction] = options.order[0];
+      query = query.orderBy(field, direction.toLowerCase());
     }
-  ]
-});
+    return query.value();
+  },
+  findByPk: (id) => db.get('clients').find({ id }).value()
+};
 
-// New Inventory model
-const Inventory = sequelize.define('Inventory', {
-  productName: {
-    type: DataTypes.STRING,
-    allowNull: false,
+// Stylist model operations
+const Stylist = {
+  create: (data) => {
+    const stylist = {
+      id: generateId(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      status: data.status || 'active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('stylists').push(stylist).write();
+    return stylist;
   },
-  manufacturer: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  purchasePrice: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-  },
-  salePrice: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-  },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-  },
-  sku: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-  },
-});
-
-const Service = sequelize.define('Service', {
-  name: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
-  },
-  price: { 
-    type: DataTypes.DECIMAL(10, 2), 
-    allowNull: false 
-  },
-  description: DataTypes.TEXT,
-  status: {
-    type: DataTypes.ENUM('active', 'inactive'),
-    defaultValue: 'active',
+  findAll: (options = {}) => {
+    let query = db.get('stylists');
+    if (options.where && options.where.status) {
+      query = query.filter({ status: options.where.status });
+    }
+    return query.value();
   }
-});
+};
 
-const Sale = sequelize.define('Sale', {
-  saleDate: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: Sequelize.NOW
-  },
-  subtotal: { 
-    type: DataTypes.DECIMAL(10, 2), 
-    allowNull: false 
-  },
-  tax: {  // Add this field
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
-  },
-  total: {
-    type: DataTypes.DECIMAL(10, 2), 
-    allowNull: false 
-  },
-  paymentMethod: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
-  },
-});
-
-const SaleItem = sequelize.define('SaleItem', {
-  price: { 
-    type: DataTypes.DECIMAL(10, 2), 
-    allowNull: false 
-  },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1
-  },
-  itemType: {
-    type: DataTypes.ENUM('service', 'product'),
-    allowNull: false
+// Service model operations
+const Service = {
+  create: (data) => {
+    const service = {
+      id: generateId(),
+      name: data.name,
+      price: data.price,
+      description: data.description || null,
+      status: data.status || 'active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('services').push(service).write();
+    return service;
   }
-});
+};
 
-// First, define all your models as you have them
-// ... (your existing model definitions)
+// Sale model operations
+const Sale = {
+  create: async (data) => {
+    const sale = {
+      id: generateId(),
+      ClientId: data.ClientId,
+      StylistId: data.StylistId,
+      saleDate: new Date(),
+      subtotal: data.subtotal,
+      tax: data.tax,
+      total: data.total,
+      paymentMethod: data.paymentMethod,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('sales').push(sale).write();
 
-// Then, define all relationships in one place for clarity
-// Sale and Client relationship
-Sale.belongsTo(Client, {
-  foreignKey: 'ClientId'
-});
-Client.hasMany(Sale, {
-  foreignKey: 'ClientId'
-});
-
-// Sale and Stylist relationship
-Sale.belongsTo(Stylist, {
-  foreignKey: 'StylistId'
-});
-Stylist.hasMany(Sale, {
-  foreignKey: 'StylistId'
-});
-
-// Sale and SaleItem relationship
-Sale.hasMany(SaleItem, {
-  foreignKey: 'SaleId',
-  as: 'SaleItems'  // This alias helps when querying related items
-});
-SaleItem.belongsTo(Sale, {
-  foreignKey: 'SaleId'
-});
-
-// SaleItem and Service relationship
-SaleItem.belongsTo(Service, {
-  foreignKey: 'ServiceId'
-});
-Service.hasMany(SaleItem, {
-  foreignKey: 'ServiceId'
-});
-
-// SaleItem and Inventory relationship
-SaleItem.belongsTo(Inventory, {
-  foreignKey: 'InventoryId'
-});
-Inventory.hasMany(SaleItem, {
-  foreignKey: 'InventoryId'
-});
-
-async function setupDatabase() {
-  try {
-    let needsInitialData = false;
-    
-    if (fs.existsSync(DB_PATH)) {
-      try {
-        await sequelize.authenticate();
-        const stylistCount = await Stylist.count();
-        needsInitialData = stylistCount === 0;
-        console.log('Existing database found. Stylist count:', stylistCount);
-      } catch (error) {
-        console.log('Error checking existing database:', error);
-        needsInitialData = true;
-      }
-    } else {
-      needsInitialData = true;
+    // Handle sale items
+    if (data.items) {
+      data.items.forEach(item => {
+        const saleItem = {
+          id: generateId(),
+          SaleId: sale.id,
+          price: item.price,
+          quantity: item.quantity || 1,
+          itemType: item.itemType,
+          ServiceId: item.ServiceId || null,
+          InventoryId: item.InventoryId || null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        db.get('saleItems').push(saleItem).write();
+      });
     }
 
-    if (needsInitialData) {
-      console.log('Database needs initialization...');
-      await sequelize.sync({ force: true });
-      await seedDatabase(); // Add this line
-    } else {
-      await sequelize.sync();
-    }
-
-    console.log('Database setup completed successfully');
-  } catch (error) {
-    console.error('Unable to setup database:', error);
-    throw error;
+    return sale;
   }
-}
+};
 
-async function seedDatabase() {
-  try {
-    // First, let's create some sample clients
-    const clients = await Client.bulkCreate([
-      {
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        phone: '555-123-4567',
-        email: 'sarah.j@email.com',
-        address: '123 Main St, Anytown, USA'
-      },
-      {
-        firstName: 'Michael',
-        lastName: 'Smith',
-        phone: '555-234-5678',
-        email: 'msmith@email.com',
-        address: '456 Oak Ave, Somewhere, USA'
-      },
-      {
-        firstName: 'Emma',
-        lastName: 'Davis',
-        phone: '555-345-6789',
-        email: 'emma.d@email.com',
-        address: '789 Pine Rd, Elsewhere, USA'
-      }
-    ]);
-
-    // Next, create some stylists with different statuses
-    const stylists = await Stylist.bulkCreate([
-      {
-        firstName: 'Jessica',
-        lastName: 'Williams',
-        status: 'active'
-      },
-      {
-        firstName: 'David',
-        lastName: 'Anderson',
-        status: 'active'
-      },
-      {
-        firstName: 'Maria',
-        lastName: 'Garcia',
-        status: 'inactive'
-      }
-    ]);
-
-    // Create a variety of services that a salon might offer
-    const services = await Service.bulkCreate([
-      {
-        name: 'Women\'s Haircut',
-        price: 45.00,
-        description: 'Complete haircut and style',
-        status: 'active'
-      },
-      {
-        name: 'Men\'s Haircut',
-        price: 30.00,
-        description: 'Classic men\'s cut and style',
-        status: 'active'
-      },
-      {
-        name: 'Color Service',
-        price: 85.00,
-        description: 'Full color treatment',
-        status: 'active'
-      },
-      {
-        name: 'Highlights',
-        price: 120.00,
-        description: 'Partial or full highlights',
-        status: 'active'
-      },
-      {
-        name: 'Blowout',
-        price: 35.00,
-        description: 'Wash and professional blowout',
-        status: 'active'
-      }
-    ]);
-
-    // Create inventory items (hair products and supplies)
-    const inventoryItems = await Inventory.bulkCreate([
-      {
-        productName: 'Professional Shampoo',
-        manufacturer: 'LuxuryHair',
-        purchasePrice: 12.50,
-        salePrice: 24.99,
-        quantity: 50,
-        sku: 'SHAM001'
-      },
-      {
-        productName: 'Conditioning Treatment',
-        manufacturer: 'LuxuryHair',
-        purchasePrice: 15.00,
-        salePrice: 29.99,
-        quantity: 40,
-        sku: 'COND001'
-      },
-      {
-        productName: 'Styling Gel',
-        manufacturer: 'StylePro',
-        purchasePrice: 8.00,
-        salePrice: 18.99,
-        quantity: 35,
-        sku: 'STYLG001'
-      },
-      {
-        productName: 'Hair Spray',
-        manufacturer: 'StylePro',
-        purchasePrice: 7.50,
-        salePrice: 16.99,
-        quantity: 45,
-        sku: 'SPRY001'
-      },
-      {
-        productName: 'Leave-in Treatment',
-        manufacturer: 'HairCare Plus',
-        purchasePrice: 14.00,
-        salePrice: 27.99,
-        quantity: 30,
-        sku: 'LVIN001'
-      }
-    ]);
-
-    // Create some sample sales with both services and products
-    const sales = await Promise.all([
-      Sale.create({
-        ClientId: clients[0].id,
-        StylistId: stylists[0].id,
-        saleDate: new Date(),
-        subtotal: 75.99,
-        tax: 6.08,
-        total: 82.07,
-        paymentMethod: 'Credit Card'
-      }),
-      Sale.create({
-        ClientId: clients[1].id,
-        StylistId: stylists[1].id,
-        saleDate: new Date(),
-        subtotal: 145.98,
-        tax: 11.68,
-        total: 157.66,
-        paymentMethod: 'Cash'
-      })
-    ]);
-
-    // Create sale items for each sale
-    await SaleItem.bulkCreate([
-      {
-        SaleId: sales[0].id,
-        ServiceId: services[0].id,
-        price: 45.00,
-        quantity: 1,
-        itemType: 'service'
-      },
-      {
-        SaleId: sales[0].id,
-        InventoryId: inventoryItems[0].id,
-        price: 24.99,
-        quantity: 1,
-        itemType: 'product'
-      },
-      {
-        SaleId: sales[1].id,
-        ServiceId: services[2].id,
-        price: 85.00,
-        quantity: 1,
-        itemType: 'service'
-      },
-      {
-        SaleId: sales[1].id,
-        InventoryId: inventoryItems[1].id,
-        price: 29.99,
-        quantity: 2,
-        itemType: 'product'
-      }
-    ]);
-
-    console.log('Database seeded successfully!');
-    return true;
-  } catch (error) {
-    console.error('Error seeding database:', error);
-    throw error;
+// Inventory model operations
+const Inventory = {
+  create: (data) => {
+    const item = {
+      id: generateId(),
+      productName: data.productName,
+      manufacturer: data.manufacturer,
+      purchasePrice: data.purchasePrice,
+      salePrice: data.salePrice,
+      quantity: data.quantity || 0,
+      sku: data.sku,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('inventory').push(item).write();
+    return item;
   }
-}
+};
 
 module.exports = {
-  sequelize,
   Client,
   Stylist,
   Service,
   Sale,
-  SaleItem,
   Inventory,
-  setupDatabase,
+  setupDatabase: async () => true // No setup needed for LowDB
 };

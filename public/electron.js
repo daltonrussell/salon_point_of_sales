@@ -1,47 +1,89 @@
+/*** IMPORTS ***/
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const low = require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync');
 const isDev = require('electron-is-dev');
-const { Op } = require('sequelize');
 const _ = require('lodash');
-const { 
-  setupDatabase, 
-  Client, 
-  Stylist, 
-  Service, 
-  Sale, 
-  SaleItem, sequelize, Inventory
-} = require('./database');
+const fs = require('fs');
 
+/*** CONSTANTS & UTILITIES ***/
 let mainWindow;
+const generateId = () => Date.now().toString();
 
+// Logging setup
+const debugLog = path.join(app.getPath('userData'), 'debug.log');
+function log(...args) {
+  const message = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg) : arg
+  ).join(' ');
+  fs.appendFileSync(debugLog, `${new Date().toISOString()}: ${message}\n`);
+  console.log(...args);
+}
+
+/*** DATABASE SETUP ***/
+const DB_PATH = isDev 
+  ? path.join(__dirname, '..', 'src', 'database.json')
+  : path.join(app.getPath('userData'), 'database.json');
+
+const adapter = new FileSync(DB_PATH);
+const db = low(adapter);
+
+// Initialize database with default structure
+db.defaults({
+  clients: [],
+  stylists: [],
+  services: [],
+  sales: [],
+  saleItems: [],
+  inventory: []
+}).write();
+
+/*** WINDOW MANAGEMENT ***/
 function createWindow() {
+  log('Creating window...');
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
     }
   });
 
-  mainWindow.loadURL(
-    isDev
-      ? 'http://localhost:3000'
-      : `file://${path.join(__dirname, '../build/index.html')}`
-  );
+  const startUrl = isDev
+  ? 'http://localhost:3000'
+  : `file://${path.join(__dirname, '../build/index.html')}`;  // Changed this line
 
-  if (isDev) {
+  log('Loading URL:', startUrl);
+  log('Resolved path:', path.resolve(__dirname, '../build/index.html')); // Add this for debugging
+
+  // Window event handlers
+  mainWindow.webContents.on('did-start-loading', () => log('Started loading content'));
+  mainWindow.webContents.on('did-finish-load', () => {
+    log('Finished loading content');
     mainWindow.webContents.openDevTools();
-  }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
   });
+  mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
+    log('Failed to load:', errorCode, errorDescription);
+  });
+  mainWindow.webContents.on('crashed', () => log('WebContents crashed'));
+  mainWindow.webContents.on('dom-ready', () => log('DOM is ready'));
+  mainWindow.on('unresponsive', () => log('Window became unresponsive'));
+  mainWindow.on('closed', () => { mainWindow = null; });
+
+  mainWindow.loadURL(startUrl).catch(err => log('Failed to load URL:', err));
 }
 
+/*** APP LIFECYCLE ***/
 app.whenReady().then(() => {
-  createWindow();
-  setupDatabase();
+  log('App is ready, initializing...');
+  try {
+    createWindow();
+    log('Window created successfully');
+  } catch (err) {
+    log('Error during initialization:', err);
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -56,467 +98,335 @@ app.on('activate', () => {
   }
 });
 
-// Client IPC Handlers
+// Client Handlers
 ipcMain.handle('create-client', async (event, clientData) => {
   try {
-    const client = await Client.create(clientData, { raw: true });
-    // Get the plain object version of the client
-    const plainClient = await Client.findByPk(client.id, { raw: true });
-    return plainClient;
+    const client = {
+      id: generateId(),
+      ...clientData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('clients').push(client).write();
+    return client;
   } catch (error) {
-    console.error('Error creating client:', error);
+    log('Error creating client:', error);
     throw error;
   }
 });
 
 ipcMain.handle('get-recent-clients', async (event, limit = 3) => {
   try {
-    const clients = await Client.findAll({
-      order: [['createdAt', 'DESC']],
-      limit,
-      raw: true
-    });
-    return clients;
+    return db.get('clients')
+      .orderBy('createdAt', 'desc')
+      .take(limit)
+      .value();
   } catch (error) {
-    console.error('Error fetching recent clients:', error);
+    log('Error fetching recent clients:', error);
     throw error;
   }
 });
 
 ipcMain.handle('get-all-clients', async () => {
   try {
-    const clients = await Client.findAll({
-      order: [
-        ['lastName', 'ASC'],
-        ['firstName', 'ASC']
-      ],
-      raw: true
-    });
-    return clients;
+    return db.get('clients')
+      .orderBy(['lastName', 'firstName'], ['asc', 'asc'])
+      .value();
   } catch (error) {
-    console.error('Error fetching all clients:', error);
+    log('Error fetching all clients:', error);
     throw error;
   }
 });
 
 ipcMain.handle('search-clients', async (event, searchTerm) => {
   try {
-    const clients = await Client.findAll({
-      where: {
-        [Op.or]: [
-          {
-            firstName: {
-              [Op.like]: `%${searchTerm}%`
-            }
-          },
-          {
-            lastName: {
-              [Op.like]: `%${searchTerm}%`
-            }
-          },
-          {
-            phone: {
-              [Op.like]: `%${searchTerm}%`
-            }
-          }
-        ]
-      },
-      raw: true
-    });
-    return clients;
+    const searchTermLower = searchTerm.toLowerCase();
+    return db.get('clients')
+      .filter(client => 
+        client.firstName.toLowerCase().includes(searchTermLower) ||
+        client.lastName.toLowerCase().includes(searchTermLower) ||
+        (client.phone && client.phone.includes(searchTerm))
+      )
+      .value();
   } catch (error) {
-    console.error('Error searching clients:', error);
+    log('Error searching clients:', error);
     throw error;
   }
 });
 
 ipcMain.handle('get-client', async (event, id) => {
   try {
-    const client = await Client.findByPk(id, { raw: true });
-    return client;
+    return db.get('clients').find({ id }).value();
   } catch (error) {
-    console.error('Error fetching client:', error);
+    log('Error fetching client:', error);
     throw error;
   }
 });
 
-// Service IPC Handlers
+// Service Handlers
 ipcMain.handle('create-service', async (event, serviceData) => {
   try {
-    const service = await Service.create(serviceData);
+    const service = {
+      id: generateId(),
+      ...serviceData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('services').push(service).write();
     return service;
   } catch (error) {
-    console.error('Error creating service:', error);
+    log('Error creating service:', error);
     throw error;
   }
 });
 
 ipcMain.handle('get-services', async (event, status = 'active') => {
   try {
-    const where = status !== 'all' ? { status } : {};
-    const services = await Service.findAll({
-      where,
-      raw: true,
-      order: [['name', 'ASC']]
-    });
-    return services;
+    let query = db.get('services');
+    if (status !== 'all') {
+      query = query.filter({ status });
+    }
+    return query.orderBy('name', 'asc').value();
   } catch (error) {
-    console.error('Error fetching services:', error);
+    log('Error fetching services:', error);
     throw error;
   }
 });
 
 ipcMain.handle('update-service', async (event, { id, ...serviceData }) => {
   try {
-    const service = await Service.findByPk(id);
-    if (!service) {
+    const service = db.get('services').find({ id });
+    if (!service.value()) {
       throw new Error('Service not found');
     }
-    await service.update(serviceData);
-    return await service.reload();
+    service.assign({ ...serviceData, updatedAt: new Date() }).write();
+    return service.value();
   } catch (error) {
-    console.error('Error updating service:', error);
+    log('Error updating service:', error);
     throw error;
   }
 });
 
-// Stylist IPC Handlers
+// Stylist Handlers
 ipcMain.handle('create-stylist', async (event, stylistData) => {
   try {
-    const stylist = await Stylist.create(stylistData);
+    const stylist = {
+      id: generateId(),
+      ...stylistData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('stylists').push(stylist).write();
     return stylist;
   } catch (error) {
-    console.error('Error creating stylist:', error);
+    log('Error creating stylist:', error);
     throw error;
   }
 });
 
 ipcMain.handle('get-stylists', async (event, status = 'all') => {
   try {
-    const where = status !== 'all' ? { status } : {};
-
-    const stylists = await Stylist.findAll({
-      where,
-      raw: true,
-      order: [
-        ['lastName', 'ASC'],
-        ['firstName', 'ASC']
-      ]
-    });
-    
-    return stylists;
+    let query = db.get('stylists');
+    if (status !== 'all') {
+      query = query.filter({ status });
+    }
+    return query.orderBy(['lastName', 'firstName'], ['asc', 'asc']).value();
   } catch (error) {
-    console.error('Error fetching stylists:', error);
+    log('Error fetching stylists:', error);
     throw error;
   }
 });
 
 ipcMain.handle('update-stylist-status', async (event, { id, status }) => {
   try {
-    const stylist = await Stylist.findByPk(id);
-    if (!stylist) {
+    const stylist = db.get('stylists').find({ id });
+    if (!stylist.value()) {
       throw new Error('Stylist not found');
     }
-    await stylist.update({ status });
-    return await stylist.reload();
+    stylist.assign({ status, updatedAt: new Date() }).write();
+    return stylist.value();
   } catch (error) {
-    console.error('Error updating stylist status:', error);
+    log('Error updating stylist status:', error);
     throw error;
   }
 });
 
 ipcMain.handle('delete-stylist', async (event, { id }) => {
   try {
-    const stylist = await Stylist.findByPk(id);
-    if (!stylist) {
+    const stylist = db.get('stylists').find({ id });
+    if (!stylist.value()) {
       throw new Error('Stylist not found');
     }
-    await stylist.destroy();
+    db.get('stylists').remove({ id }).write();
     return true;
   } catch (error) {
-    console.error('Error deleting stylist:', error);
+    log('Error deleting stylist:', error);
     throw error;
   }
 });
 
+// Sale Handlers with Transaction-like Behavior
 ipcMain.handle('create-sale', async (event, {
-  ClientId,  // Make sure these are being passed
-  StylistId, // from the UI
+  ClientId,
+  StylistId,
   services,
   products,
   subtotal,
-  tax,      // Now being passed from UI
+  tax,
   total,
   paymentMethod
 }) => {
   try {
-    const result = await sequelize.transaction(async (t) => {
-      // Create the sale with client and stylist IDs
-      const sale = await Sale.create({
-        ClientId,    // This assigns the sale to a client
-        StylistId,   // This assigns the sale to a stylist
-        subtotal,
-        tax,         // Using tax calculated in UI
-        total,
-        paymentMethod,
-        saleDate: new Date()
-      }, { transaction: t });
+    const sale = {
+      id: generateId(),
+      ClientId,
+      StylistId,
+      subtotal,
+      tax,
+      total,
+      paymentMethod,
+      saleDate: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-      // Create service sale items
-      const serviceItems = await Promise.all(
-        services.map(service =>
-          SaleItem.create({
-            SaleId: sale.id,  // Changed from saleId to SaleId
-            ServiceId: service.serviceId,  // Changed from serviceId to ServiceId
-            price: service.price,
-            itemType: 'service',
-            quantity: 1
-          }, { transaction: t })
-        )
-      );
+    // Handle services
+    const serviceItems = services.map(service => ({
+      id: generateId(),
+      SaleId: sale.id,
+      ServiceId: service.serviceId,
+      price: service.price,
+      itemType: 'service',
+      quantity: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
 
-      // Create product sale items and update inventory
-      const productItems = await Promise.all(
-        products.map(async product => {
-          const inventoryItem = await Inventory.findByPk(product.inventoryId, { transaction: t });
+    // Handle products
+    const productItems = [];
+    for (const product of products) {
+      const inventoryItem = db.get('inventory').find({ id: product.inventoryId }).value();
+      
+      if (!inventoryItem) {
+        throw new Error(`Product with ID ${product.inventoryId} not found`);
+      }
 
-          if (!inventoryItem) {
-            throw new Error(`Product with ID ${product.inventoryId} not found`);
-          }
+      if (inventoryItem.quantity < product.quantity) {
+        throw new Error(`Insufficient inventory for product ${inventoryItem.productName}`);
+      }
 
-          if (inventoryItem.quantity < product.quantity) {
-            throw new Error(`Insufficient inventory for product ${inventoryItem.productName}`);
-          }
-
-          await inventoryItem.update({
-            quantity: inventoryItem.quantity - product.quantity
-          }, { transaction: t });
-
-          return SaleItem.create({
-            SaleId: sale.id,  // Changed from saleId to SaleId
-            InventoryId: product.inventoryId,  // Changed from inventoryId to InventoryId
-            price: product.price,
-            quantity: product.quantity,
-            itemType: 'product'
-          }, { transaction: t });
+      // Update inventory
+      db.get('inventory')
+        .find({ id: product.inventoryId })
+        .assign({ 
+          quantity: inventoryItem.quantity - product.quantity,
+          updatedAt: new Date()
         })
-      );
+        .write();
+
+      productItems.push({
+        id: generateId(),
+        SaleId: sale.id,
+        InventoryId: product.inventoryId,
+        price: product.price,
+        quantity: product.quantity,
+        itemType: 'product',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    // Save all changes
+    db.get('sales').push(sale).write();
+    db.get('saleItems').push(...serviceItems, ...productItems).write();
+
+    return { sale, saleItems: [...serviceItems, ...productItems] };
+  } catch (error) {
+    log('Error creating sale:', error);
+    throw error;
+  }
+});
+
+// Reports
+ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDate }) => {
+  try {
+    const sales = db.get('sales')
+      .filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        return sale.StylistId === stylistId &&
+               saleDate >= new Date(startDate) &&
+               saleDate <= new Date(endDate);
+      })
+      .value();
+
+    const formattedSales = sales.map(sale => {
+      const client = db.get('clients').find({ id: sale.ClientId }).value();
+      const stylist = db.get('stylists').find({ id: sale.StylistId }).value();
+      const saleItems = db.get('saleItems').filter({ SaleId: sale.id }).value();
+
+      const items = saleItems.map(item => {
+        const service = item.itemType === 'service' 
+          ? db.get('services').find({ id: item.ServiceId }).value()
+          : null;
+        const product = item.itemType === 'product'
+          ? db.get('inventory').find({ id: item.InventoryId }).value()
+          : null;
+
+        return {
+          type: item.itemType,
+          name: item.itemType === 'service' ? service?.name : product?.productName,
+          price: item.price,
+          quantity: item.quantity
+        };
+      });
 
       return {
-        sale,
-        saleItems: [...serviceItems, ...productItems]
+        id: sale.id,
+        saleDate: sale.saleDate,
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        client: client ? `${client.firstName} ${client.lastName}` : 'N/A',
+        stylist: stylist ? `${stylist.firstName} ${stylist.lastName}` : 'N/A',
+        items
       };
     });
 
-    return result;
-  } catch (error) {
-    console.error('Error creating sale:', error);
-    throw error;
-  }
-});
-
-// Get client sales
-ipcMain.handle('get-client-sales', async (event, clientId) => {
-  try {
-    const sales = await Sale.findAll({
-      where: { clientId },
-      include: [
-        { model: SaleItem , include: [Service] },
-        { model: Stylist }
-      ],
-      order: [['saleDate', 'DESC']]
-    });
-    return sales;
-  } catch (error) {
-    console.error('Error fetching client sales:', error);
-    throw error;
-  }
-});
-
-// Get stylist sales for reporting
-ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDate }) => {
-  try {
-    // Get filtered sales for the specific stylist
-    console.log('\n=== Filtered Sales for Stylist ===');
-    const sales = await Sale.findAll({
-      where: {
-        StylistId: stylistId,
-        saleDate: {
-          [Op.between]: [startDate, endDate]
-        }
-      },
-      include: [
-        {
-          model: Client,
-          attributes: ['firstName', 'lastName']
-        },
-        {
-          model: Stylist,
-          attributes: ['firstName', 'lastName']
-        },
-        {
-          model: SaleItem,
-          as: 'SaleItems',
-          include: [
-            {
-              model: Service,
-              attributes: ['name', 'price']
-            },
-            {
-              model: Inventory,
-              attributes: ['productName', 'salePrice']
-            }
-          ]
-        }
-      ],
-      order: [['saleDate', 'DESC']]
-    });
-
-    console.log('Filtered Sales Results:', sales.map(sale => ({
-      id: sale.id,
-      date: sale.saleDate,
-      total: sale.total,
-      client: sale.Client ? `${sale.Client.firstName} ${sale.Client.lastName}` : 'No client',
-      itemCount: (sale.SaleItems || []).length,
-      items: (sale.SaleItems || []).map(item => ({
-        type: item.itemType,
-        service: item.Service?.name,
-        product: item.Inventory?.productName,
-        price: item.price,
-        quantity: item.quantity
-      }))
-    })));
-
-    // Format the final response
-    const formattedSales = sales.map(sale => ({
-      id: sale.id,
-      saleDate: sale.saleDate,
-      subtotal: sale.subtotal,
-      tax: sale.tax,
-      total: sale.total,
-      paymentMethod: sale.paymentMethod,
-      client: sale.Client ? `${sale.Client.firstName} ${sale.Client.lastName}` : 'N/A',
-      stylist: sale.Stylist ? `${sale.Stylist.firstName} ${sale.Stylist.lastName}` : 'N/A',
-      items: sale.SaleItems ? sale.SaleItems.map(item => ({
-        type: item.itemType,
-        name: item.itemType === 'service' ? item.Service?.name : item.Inventory?.productName,
-        price: item.price,
-        quantity: item.quantity
-      })) : []
-    }));
-
-    console.log('\n=== Final Formatted Response ===');
-    console.log(JSON.stringify(formattedSales, null, 2));
-
     return formattedSales;
   } catch (error) {
-    console.error('Error fetching stylist sales:', error);
-    throw error;
-  }
-});
-// Inventory IPC Handlers
-ipcMain.handle('create-inventory', async (event, inventoryData) => {
-  try {
-    const inventory = await Inventory.create(inventoryData);
-    return inventory.get({ plain: true });
-  } catch (error) {
-    console.error('Error creating inventory item:', error);
+    log('Error fetching stylist sales:', error);
     throw error;
   }
 });
 
-ipcMain.handle('get-all-inventory', async () => {
-  try {
-    return await Inventory.findAll({
-      order: [['productName', 'ASC']],
-      raw: true
-    });
-  } catch (error) {
-    console.error('Error fetching inventory:', error);
-    throw error;
-  }
-});
-
-ipcMain.handle('search-inventory', async (event, searchTerm) => {
-  try {
-    return await Inventory.findAll({
-      where: {
-        [Op.or]: [
-          {
-            productName: {
-              [Op.like]: `%${searchTerm}%`
-            }
-          },
-          {
-            manufacturer: {
-              [Op.like]: `%${searchTerm}%`
-            }
-          },
-          {
-            sku: {
-              [Op.like]: `%${searchTerm}%`
-            }
-          }
-        ]
-      },
-      raw: true
-    });
-  } catch (error) {
-    console.error('Error searching inventory:', error);
-    throw error;
-  }
-});
-
-ipcMain.handle('search-inventory-by-sku', async (event, sku) => {
-  try {
-    const item = await Inventory.findOne({
-      where: {
-        sku: sku
-      },
-      raw: true
-    });
-    return item ? [item] : []; // Return as array to maintain consistency with frontend
-  } catch (error) {
-    console.error('Error searching inventory:', error);
-    throw error;
-  }
-});
-
-// In your electron.js file
+// Inventory Reports
 ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate }) => {
   try {
-    // Get all sale items that are products within the date range
-    const salesData = await SaleItem.findAll({
-      where: {
-        itemType: 'product',
-        createdAt: {
-          [Op.between]: [startDate, endDate]
-        }
-      },
-      include: [
-        {
-          model: Inventory,
-          attributes: ['sku', 'productName']
-        },
-        {
-          model: Sale,
-          attributes: ['saleDate', 'tax']
-        }
-      ]
+    const saleItems = db.get('saleItems')
+      .filter(item => {
+        const createdAt = new Date(item.createdAt);
+        return item.itemType === 'product' &&
+               createdAt >= new Date(startDate) &&
+               createdAt <= new Date(endDate);
+      })
+      .value();
+
+    const groupedData = _.groupBy(saleItems, item => {
+      const inventory = db.get('inventory').find({ id: item.InventoryId }).value();
+      return inventory?.sku;
     });
 
-    // Group and aggregate the data by product
-    const groupedData = _.groupBy(salesData, item => item.Inventory?.sku);
-
     const reportData = Object.entries(groupedData).map(([sku, items]) => {
-      const totalSold = items.reduce((sum, item) => sum + item.quantity, 0);
-      const totalCharged = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const taxRate = 0.0725; // Based on the example data
+      const inventory = db.get('inventory').find({ sku }).value();
+      const totalSold = _.sumBy(items, 'quantity');
+      const totalCharged = _.sumBy(items, item => item.price * item.quantity);
+      const taxRate = 0.0725;
       const taxCollected = totalCharged * taxRate;
 
       return {
         id: sku,
-        description: items[0].Inventory?.productName || 'Unknown Product',
+        description: inventory?.productName || 'Unknown Product',
         totalSold,
         totalCharged,
         taxCollected
@@ -525,98 +435,339 @@ ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate })
 
     return reportData;
   } catch (error) {
-    console.error('Error generating inventory tax report:', error);
+    log('Error generating inventory tax report:', error);
     throw error;
   }
 });
 
-// Add this to your electron.js file
+// Client Report
 ipcMain.handle('get-clients-served-report', async (event, { startDate, endDate }) => {
   try {
-    const sales = await Sale.findAll({
-      where: {
-        saleDate: {
-          [Op.between]: [startDate, endDate]
-        }
-      },
-      include: [
-        {
-          model: Client,
-          attributes: ['firstName', 'lastName']
+    const sales = db.get('sales')
+      .filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        return saleDate >= new Date(startDate) &&
+               saleDate <= new Date(endDate);
+      })
+      .value();
+
+    const formattedData = sales.map(sale => {
+      const client = db.get('clients').find({ id: sale.ClientId }).value();
+      const stylist = db.get('stylists').find({ id: sale.StylistId }).value();
+      const saleItems = db.get('saleItems')
+        .filter({ SaleId: sale.id, itemType: 'service' })
+        .value();
+
+      const services = saleItems.map(item => {
+        const service = db.get('services').find({ id: item.ServiceId }).value();
+        return {
+          stylist: {
+            firstName: stylist?.firstName,
+            lastName: stylist?.lastName
+          },
+          description: service?.name || 'Unknown Service',
+          quantity: item.quantity,
+          price: item.price
+        };
+      });
+
+      return {
+        date: sale.saleDate,
+        client: {
+          firstName: client?.firstName,
+          lastName: client?.lastName
         },
-        {
-          model: Stylist,
-          attributes: ['firstName', 'lastName']
-        },
-        {
-          model: SaleItem,
-          as: 'SaleItems',
-          include: [
-            {
-              model: Service,
-              attributes: ['name', 'price']
-            }
-          ]
+        services,
+        total: sale.total,
+        payments: {
+          cash: sale.paymentMethod === 'Cash' ? sale.total : 0,
+          check: sale.paymentMethod === 'Check' ? sale.total : 0,
+          creditCard: sale.paymentMethod === 'Credit Card' ? sale.total : 0,
+          giftCard: sale.paymentMethod === 'Gift Card' ? sale.total : 0,
+          coupon: 0,
+          points: 0,
+          tips: 0,
+          change: 0
         }
-      ],
-      order: [
-        ['saleDate', 'ASC'],
-        ['Client', 'lastName', 'ASC'],
-        ['Client', 'firstName', 'ASC']
-      ]
+      };
     });
 
-    // Format the data to match the report structure
-    const formattedData = sales.map(sale => ({
-      date: sale.saleDate,
-      client: {
-        firstName: sale.Client.firstName,
-        lastName: sale.Client.lastName
-      },
-      services: sale.SaleItems.map(item => ({
-        stylist: {
-          firstName: sale.Stylist.firstName,
-          lastName: sale.Stylist.lastName
-        },
-        description: item.Service?.name || 'Unknown Service',
-        quantity: item.quantity,
-        price: item.price
-      })),
-      total: sale.total,
-      payments: {
-        cash: sale.paymentMethod === 'Cash' ? sale.total : 0,
-        check: sale.paymentMethod === 'Check' ? sale.total : 0,
-        creditCard: sale.paymentMethod === 'Credit Card' ? sale.total : 0,
-        giftCard: sale.paymentMethod === 'Gift Card' ? sale.total : 0,
-        coupon: 0,
-        points: 0,
-        tips: 0,
-        change: 0
-      }
-    }));
-
     return formattedData;
-
   } catch (error) {
-    console.error('Error fetching clients served report:', error);
+    log('Error fetching clients served report:', error);
     throw error;
   }
 });
+
+// Inventory Update
 ipcMain.handle('update-inventory-quantity', async (event, { sku, quantity }) => {
   try {
-    // Find the inventory item by SKU
-    const inventory = await Inventory.findOne({ where: { sku } });
-    if (!inventory) {
+    const inventory = db.get('inventory').find({ sku });
+    if (!inventory.value()) {
       throw new Error('Inventory item not found');
     }
 
-    // Update the quantity by adding the received amount
-    await inventory.increment('quantity', { by: quantity });
-    await inventory.reload();
+    inventory
+      .assign({ 
+        quantity: inventory.value().quantity + quantity,
+        updatedAt: new Date()
+      })
+      .write();
 
-    return inventory.get({ plain: true });
+    return inventory.value();
   } catch (error) {
-    console.error('Error updating inventory quantity:', error);
+    log('Error updating inventory quantity:', error);
+    throw error;
+  }
+});
+
+// Add these handlers right after the other IPC handlers in your main process file
+
+// Inventory Handlers
+ipcMain.handle('get-all-inventory', async () => {
+  try {
+    return db.get('inventory')
+      .orderBy(['productName'], ['asc'])
+      .value();
+  } catch (error) {
+    log('Error fetching all inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('create-inventory', async (event, inventoryData) => {
+  try {
+    const item = {
+      id: generateId(),
+      ...inventoryData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    db.get('inventory').push(item).write();
+    return item;
+  } catch (error) {
+    log('Error creating inventory item:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('search-inventory', async (event, searchTerm) => {
+  try {
+    const searchTermLower = searchTerm.toLowerCase();
+    return db.get('inventory')
+      .filter(item => 
+        item.productName.toLowerCase().includes(searchTermLower) ||
+        item.manufacturer.toLowerCase().includes(searchTermLower) ||
+        item.sku.toLowerCase().includes(searchTermLower)
+      )
+      .value();
+  } catch (error) {
+    log('Error searching inventory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('search-inventory-by-sku', async (event, sku) => {
+  try {
+    return db.get('inventory')
+      .filter(item => item.sku.toLowerCase() === sku.toLowerCase())
+      .value();
+  } catch (error) {
+    log('Error searching inventory by SKU:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
+  log('Starting print receipt process...');
+  
+  try {
+    log('Creating print window...');
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    // Get printer list and find our SNBC printer
+    const printers = await printWindow.webContents.getPrinters();
+    const receiptPrinter = printers.find(p => p.name === 'BTP-M280(U) 1');
+    
+    if (!receiptPrinter) {
+      throw new Error('Receipt printer not found');
+    }
+    
+    log('Found receipt printer:', receiptPrinter.name);
+
+    // Create receipt content with receipt-specific styling
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            /* Reset default spacing */
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+    
+            /* Base styles with 150% larger font size */
+            body {
+              font-family: monospace;
+              width: 280px;
+              /* Base font size increased by 150% */
+              font-size: 18pt;
+              line-height: 1.3;
+              /* Remove any default body margins */
+              margin: 0;
+              padding: 0;
+              /* Ensure content starts at the very top */
+              position: absolute;
+              top: 0;
+              left: 0;
+            }
+    
+            /* Header styling - 150% larger than previous */
+            .header {
+              text-align: center;
+              font-size: 21pt;
+              font-weight: bold;
+              /* Reduced top margin to minimize initial gap */
+              margin: 0 0 5px 0;
+            }
+    
+            /* Utility classes */
+            .center { 
+              text-align: center; 
+            }
+            .bold { 
+              font-weight: bold; 
+            }
+            .large-text {
+              font-size: 21pt;
+            }
+            .divider { 
+              border-top: 1px dashed black; 
+              margin: 5px 0;
+            }
+    
+            /* Item styling */
+            .item {
+              margin: 5px 0;
+              font-size: 18pt;
+            }
+    
+            /* Totals section */
+            .totals {
+              font-size: 19pt;
+              margin: 5px 0;
+            }
+    
+            /* Footer styling */
+            .footer {
+              text-align: center;
+              font-size: 18pt;
+              margin: 5px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            ${businessInfo.name}
+            <br>${businessInfo.address.replace('\n', '<br>')}
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="item">
+            Date: ${new Date().toLocaleString()}<br>
+            Payment: ${saleData.paymentMethod}
+          </div>
+          
+          <div class="divider"></div>
+          
+          ${saleData.services.map(service => `
+            <div class="item">
+              <span class="bold">Service #${service.serviceId}</span>
+              <br>Price: $${service.price.toFixed(2)}
+            </div>
+          `).join('<div class="divider"></div>')}
+          
+          ${saleData.products.length > 0 ? `
+            <div class="divider"></div>
+            <div class="bold large-text">Products</div>
+            ${saleData.products.map(product => `
+              <div class="item">
+                #${product.inventoryId} (x${product.quantity})
+                <br>Price: $${product.price.toFixed(2)}
+              </div>
+            `).join('<div class="divider"></div>')}
+          ` : ''}
+          
+          <div class="divider"></div>
+          
+          <div class="totals bold">
+            Subtotal: $${saleData.subtotal.toFixed(2)}<br>
+            Tax: $${saleData.tax.toFixed(2)}<br>
+            <div class="large-text">Total: $${saleData.total.toFixed(2)}</div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="footer">
+            Thank you for your business!
+          </div>
+        </body>
+      </html>
+    `;
+
+    log('Loading receipt content...');
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    // Create a promise to handle the print completion
+    const printPromise = new Promise((resolve, reject) => {
+      printWindow.webContents.print({
+        silent: true,
+        printBackground: false,
+        deviceName: receiptPrinter.name,
+        color: false,
+        margins: {
+          marginType: 'custom',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0
+        },
+        pageSize: {
+          width: 80000,  // 80mm in microns (this is fine as it's well above minimum)
+          height: 50000  // Setting a fixed height that's well above the minimum 352 microns
+                   // The printer will still cut the paper at the end of content
+        }
+      }, (success, failureReason) => {
+        if (success) {
+          log('Print job sent successfully');
+          resolve();
+        } else {
+          log('Print failed:', failureReason);
+          reject(new Error(`Printing failed: ${failureReason}`));
+        }
+      });
+    });
+
+    // Wait for print job to be sent
+    await printPromise;
+    
+    // Give the printer a moment to process before closing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    printWindow.close();
+    log('Print window closed after successful print');
+
+    return { success: true };
+  } catch (error) {
+    log('Error during printing:', error);
     throw error;
   }
 });
