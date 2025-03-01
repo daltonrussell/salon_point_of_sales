@@ -15,6 +15,7 @@ import {
   InputLabel,
   Tabs,
   Tab,
+  Tooltip,
 } from '@mui/material';
 import CustomerModal from '../customers/CustomerModal';
 const { ipcRenderer } = window.require('electron');
@@ -51,6 +52,7 @@ function SalesForm() {
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productQuantity, setProductQuantity] = useState(1);
+  const [discountPercent, setDiscountPercent] = useState('0');
 
   // Payment states
   const [subtotal, setSubtotal] = useState(0);
@@ -92,6 +94,21 @@ function SalesForm() {
     };
   }, []);
 
+  // Add this to prevent form submission on Enter when using barcode scanner
+  useEffect(() => {
+    const preventSubmit = (e) => {
+      if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', preventSubmit);
+
+    return () => {
+      window.removeEventListener('keydown', preventSubmit);
+    };
+  }, []);
+
   // Data loading functions
   const loadStylists = async () => {
     try {
@@ -123,7 +140,7 @@ function SalesForm() {
       console.error('Invalid customer data:', newCustomer);
       return;
     }
-    
+
     setCustomers(prev => [
       ...prev.filter(c => c && c.lastName && c.firstName),
       newCustomer
@@ -135,44 +152,74 @@ function SalesForm() {
     setSelectedCustomer(newCustomer);
   };
 
+  // Handle back bar button
+  const handleBackBar = () => {
+    if (selectedProduct) {
+      // Add product to cart with zero price (back bar usage)
+      const newItem = {
+        id: Date.now(),
+        type: 'product',
+        product: selectedProduct,
+        quantity: productQuantity,
+        price: 0,
+        isBackBar: true
+      };
+      const updatedCart = [...cartItems, newItem];
+      setCartItems(updatedCart);
+      updateTotals(updatedCart);
+      setSelectedProduct(null);
+      setProductQuantity(1);
+      setDiscountPercent('0');
+      setProductKey(prev => prev + 1);
+    }
+  };
+
   // Cart management
-const addToCart = (type) => {
-  if (type === 'service' && selectedService && selectedStylist) {
-    const servicePrice = parseFloat(customPrice) || selectedService.price;
-    const newItem = {
-      id: Date.now(),
-      type: 'service',
-      service: {
-        ...selectedService,
+  const addToCart = (type) => {
+    if (type === 'service' && selectedService && selectedStylist) {
+      const servicePrice = parseFloat(customPrice) || selectedService.price;
+      const newItem = {
+        id: Date.now(),
+        type: 'service',
+        service: {
+          ...selectedService,
+          price: servicePrice,
+        },
+        stylist: selectedStylist,
         price: servicePrice,
-      },
-      stylist: selectedStylist,
-      price: servicePrice,
-      quantity: 1
-    };
-    const updatedCart = [...cartItems, newItem];
-    setCartItems(updatedCart);
-    updateTotals(updatedCart);
-    setSelectedService(null);
-    setCustomPrice('');
-    setServiceKey(prev => prev + 1); // Add this line
-  } else if (type === 'product' && selectedProduct) {
-    const productPrice = selectedProduct.salePrice * productQuantity;
-    const newItem = {
-      id: Date.now(),
-      type: 'product',
-      product: selectedProduct,
-      quantity: productQuantity,
-      price: productPrice
-    };
-    const updatedCart = [...cartItems, newItem];
-    setCartItems(updatedCart);
-    updateTotals(updatedCart);
-    setSelectedProduct(null);
-    setProductQuantity(1);
-    setProductKey(prev => prev + 1); // Add this line
-  }
-};
+        quantity: 1
+      };
+      const updatedCart = [...cartItems, newItem];
+      setCartItems(updatedCart);
+      updateTotals(updatedCart);
+      setSelectedService(null);
+      setCustomPrice('');
+      setServiceKey(prev => prev + 1); // Add this line
+    } else if (type === 'product' && selectedProduct) {
+      // Calculate discounted price
+      const discountMultiplier = 1 - (parseFloat(discountPercent) / 100);
+      const originalPrice = selectedProduct.salePrice * productQuantity;
+      const discountedPrice = originalPrice * discountMultiplier;
+
+      const newItem = {
+        id: Date.now(),
+        type: 'product',
+        product: selectedProduct,
+        quantity: productQuantity,
+        originalPrice: originalPrice,
+        discountPercent: parseFloat(discountPercent),
+        price: parseFloat(discountedPrice.toFixed(2))
+      };
+      const updatedCart = [...cartItems, newItem];
+      setCartItems(updatedCart);
+      updateTotals(updatedCart);
+      setSelectedProduct(null);
+      setProductQuantity(1);
+      setDiscountPercent('0');
+      setProductKey(prev => prev + 1); // Add this line
+    }
+  };
+
   const removeFromCart = (itemId) => {
     const updatedCart = cartItems.filter(item => item.id !== itemId);
     setCartItems(updatedCart);
@@ -193,67 +240,86 @@ const addToCart = (type) => {
     });
 
     const newProductTax = newProductSubtotal * taxRate;
-    
+
     setSubtotal(newServiceSubtotal + newProductSubtotal);
     setProductTax(newProductTax);
     setServiceTax(0); // Services are not taxed
   };
 
   const handleCompleteSale = async () => {
-  try {
-    // Separate cart items into services and products
-    const services = cartItems
-      .filter(item => item.type === 'service')
-      .map(item => ({
-        serviceId: item.service.id,
-        price: item.service.price,
-        quantity: 1
-      }));
+    try {
+      // Check if this sale contains any back bar items
+      const hasBackBarItems = cartItems.some(item => item.isBackBar);
 
-    const products = cartItems
-      .filter(item => item.type === 'product')
-      .map(item => ({
-        inventoryId: item.product.id,
-        price: item.price,
-        quantity: item.quantity
-      }));
+      // Separate cart items into services and products
+      const services = cartItems
+        .filter(item => item.type === 'service')
+        .map(item => ({
+          serviceId: item.service.id,
+          price: item.service.price,
+          quantity: 1
+        }));
 
-    const saleData = {
-      ClientId: selectedCustomer.id,
-      StylistId: selectedStylist.id,
-      services,     // Send separated services array
-      products,     // Send separated products array
-      subtotal,
-      tax: productTax,
-      total: subtotal + productTax,
-      paymentMethod
-    };
+      const products = cartItems
+        .filter(item => item.type === 'product')
+        .map(item => ({
+          inventoryId: item.product.id,
+          price: item.price,
+          quantity: item.quantity,
+          isBackBar: !!item.isBackBar
+        }));
 
-    console.log('Sale Data being sent:', saleData);
+      const saleData = {
+        ClientId: selectedCustomer ? selectedCustomer.id : null,
+        StylistId: selectedStylist ? selectedStylist.id : null,
+        services,     // Send separated services array
+        products,     // Send separated products array
+        subtotal,
+        tax: productTax,
+        total: subtotal + productTax,
+        paymentMethod: paymentMethod || 'back-bar'
+      };
 
+      console.log('Sale Data being sent:', saleData);
 
-    await ipcRenderer.invoke('create-sale', saleData);
+      await ipcRenderer.invoke('create-sale', saleData);
 
-    await ipcRenderer.invoke('print-receipt', {
-      saleData,
-      businessInfo: {
-        name: "A New You",
-        address: "107 S 2nd St\nIronton, OH 45432",
+      // Track if we had a printer error
+      let printerError = false;
+
+      // Only attempt to print receipt for non-back-bar sales
+      if (!hasBackBarItems) {
+        try {
+          await ipcRenderer.invoke('print-receipt', {
+            saleData,
+            businessInfo: {
+              name: "A New You",
+              address: "107 S 2nd St\nIronton, OH 45432",
+            }
+          });
+        } catch (error) {
+          printerError = true;
+          console.error('Receipt printer error:', error);
+          // Show a more user-friendly message but continue with the sale
+          alert('Sale completed successfully, but receipt could not be printed. Please check printer connection.');
+        }
       }
-    });
 
-    // Reset form
-    setCartItems([]);
-    setSelectedCustomer(null);
-    setSelectedStylist(null);
-    setPaymentMethod('');
+      // Reset form
+      setCartItems([]);
+      setSelectedCustomer(null);
+      setSelectedStylist(null);
+      setPaymentMethod('');
 
-    alert('Sale completed successfully!');
-  } catch (error) {
-    console.error('Error completing sale:', error);
-    alert('Error completing sale');
-  }
-};
+      // Only show the general success message if we haven't already shown the printer error message
+      if (hasBackBarItems || !printerError) {
+        alert('Sale completed successfully!');
+      }
+    } catch (error) {
+      console.error('Error completing sale:', error);
+      alert('Error completing sale');
+    }
+  };
 
   return (
     <Grid container spacing={3}>
@@ -397,7 +463,7 @@ const addToCart = (type) => {
           </Typography>
           <Grid container spacing={2} alignItems="flex-start">
             {/* Product Dropdown */}
-            <Grid item xs={4}>
+            <Grid item xs={8}>
               <Autocomplete
                 key={productKey}
                 options={products}
@@ -413,18 +479,53 @@ const addToCart = (type) => {
                   />
                 )}
                 onChange={(event, newValue) => setSelectedProduct(newValue)}
-                renderOption={(props, option) => (
-                  <li {...props}>
-                    <div>
-                      <Typography>{option.productName}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Stock: {option.quantity} - ${option.salePrice}
-                      </Typography>
-                    </div>
-                  </li>
-                )}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <li key={key} {...otherProps}>
+                      <div>
+                        <Typography>{option.productName}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          SKU: {option.sku} - Stock: {option.quantity} - ${option.salePrice}
+                        </Typography>
+                      </div>
+                    </li>
+                  );
+                }}
+                filterOptions={(options, state) => {
+                  // First, check if state.inputValue matches any SKU exactly
+                  const skuMatch = options.filter(option =>
+                    option.sku.toLowerCase() === state.inputValue.toLowerCase()
+                  );
+
+                  // If we have SKU matches, return those first
+                  if (skuMatch.length > 0) {
+                    return skuMatch;
+                  }
+
+                  // Otherwise, perform regular filtering on both SKU and product name
+                  return options.filter(option =>
+                    option.sku.toLowerCase().includes(state.inputValue.toLowerCase()) ||
+                    option.productName.toLowerCase().includes(state.inputValue.toLowerCase())
+                  );
+                }}
               />
             </Grid>
+
+
+             {/* Add Button */}
+            <Grid item xs={4}>
+              <Button
+                variant="contained"
+                onClick={() => addToCart('product')}
+                disabled={!selectedProduct || productQuantity < 1}
+                fullWidth
+                sx={{ height: '56px' }}
+              >
+                ADD PRODUCT
+              </Button>
+            </Grid>
+
 
             {/* Quantity Input */}
             <Grid item xs={4}>
@@ -442,17 +543,43 @@ const addToCart = (type) => {
               />
             </Grid>
 
-            {/* Add Button */}
+
+
+            {/* New Row for Discount and Back Bar */}
             <Grid item xs={4}>
-              <Button
-                variant="contained"
-                onClick={() => addToCart('product')}
-                disabled={!selectedProduct || productQuantity < 1}
+              <TextField
+                label="Discount %"
+                type="number"
+                variant="outlined"
                 fullWidth
-                sx={{ height: '56px' }}
-              >
-                ADD PRODUCT
-              </Button>
+                value={discountPercent}
+                onChange={(e) => {
+                  const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                  setDiscountPercent(value.toString());
+                }}
+                InputProps={{
+                  inputProps: { min: 0, max: 100 },
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                }}
+                disabled={!selectedProduct}
+              />
+            </Grid>
+
+
+
+            <Grid item xs={4}>
+              <Tooltip title="Mark product as used in salon (not for sale)">
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleBackBar}
+                  disabled={!selectedProduct || productQuantity < 1}
+                  fullWidth
+                  sx={{ height: '56px' }}
+                >
+                  BACK BAR
+                </Button>
+              </Tooltip>
             </Grid>
           </Grid>
         </Paper>
@@ -464,7 +591,7 @@ const addToCart = (type) => {
           <Typography variant="h6" gutterBottom>
             Cart Summary
           </Typography>
-          
+
           {/* Cart Items */}
           <Box sx={{ mb: 3 }}>
             {cartItems.map((item) => (
@@ -481,7 +608,13 @@ const addToCart = (type) => {
                   {item.type === 'service' ? (
                     `${item.service.name} - ${item.stylist.firstName}`
                   ) : (
-                    `${item.product.productName} (x${item.quantity})`
+                    <>
+                      {item.product.productName} (x{item.quantity})
+                      {item.isBackBar && <span style={{ color: 'blue' }}> [Back Bar]</span>}
+                      {!item.isBackBar && item.discountPercent > 0 &&
+                        <span style={{ color: 'red' }}> [{item.discountPercent}% off]</span>
+                      }
+                    </>
                   )}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -553,9 +686,10 @@ const addToCart = (type) => {
             onClick={handleCompleteSale}
             disabled={
               cartItems.length === 0 ||
-              !paymentMethod ||
-              !selectedCustomer ||
-              !selectedStylist
+              (
+                !cartItems.some(item => item.isBackBar) &&  // <-- If NO back bar items, AND missing requirements, THEN disable
+                (!selectedCustomer || !selectedStylist || !paymentMethod)
+              )
             }
           >
             COMPLETE SALE

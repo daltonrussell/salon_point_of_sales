@@ -601,7 +601,7 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
     
     log('Found receipt printer:', receiptPrinter.name);
 
-    // Create receipt content with receipt-specific styling
+    // Create receipt content with dramatically increased font sizes
     const htmlContent = `
       <html>
         <head>
@@ -613,29 +613,30 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
               box-sizing: border-box;
             }
     
-            /* Base styles with 150% larger font size */
+            /* Base styles with MUCH larger font size */
             body {
               font-family: monospace;
               width: 280px;
-              /* Base font size increased by 150% */
-              font-size: 18pt;
-              line-height: 1.3;
+              /* Dramatically increased font size */
+              font-size: 30pt;
+              line-height: 1.2;
               /* Remove any default body margins */
               margin: 0;
               padding: 0;
-              /* Ensure content starts at the very top */
+              /* Ensure content starts at the very top with no gap */
               position: absolute;
               top: 0;
               left: 0;
             }
     
-            /* Header styling - 150% larger than previous */
+            /* Header styling - larger and bolder */
             .header {
               text-align: center;
-              font-size: 21pt;
+              font-size: 36pt;
               font-weight: bold;
-              /* Reduced top margin to minimize initial gap */
-              margin: 0 0 5px 0;
+              /* Minimal top margin */
+              margin: 0;
+              padding-top: 0;
             }
     
             /* Utility classes */
@@ -646,30 +647,31 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
               font-weight: bold; 
             }
             .large-text {
-              font-size: 21pt;
+              font-size: 34pt;
             }
             .divider { 
-              border-top: 1px dashed black; 
-              margin: 5px 0;
+              border-top: 2px dashed black; 
+              margin: 8px 0;
             }
     
             /* Item styling */
             .item {
-              margin: 5px 0;
-              font-size: 18pt;
+              margin: 8px 0;
+              font-size: 30pt;
             }
     
             /* Totals section */
             .totals {
-              font-size: 19pt;
-              margin: 5px 0;
+              font-size: 32pt;
+              margin: 8px 0;
             }
     
             /* Footer styling */
             .footer {
               text-align: center;
-              font-size: 18pt;
-              margin: 5px 0;
+              font-size: 30pt;
+              margin: 10px 0;
+              padding-bottom: 20px;
             }
           </style>
         </head>
@@ -688,15 +690,18 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
           
           <div class="divider"></div>
           
-          ${saleData.services.map(service => `
-            <div class="item">
-              <span class="bold">Service #${service.serviceId}</span>
-              <br>Price: $${service.price.toFixed(2)}
-            </div>
-          `).join('<div class="divider"></div>')}
-          
-          ${saleData.products.length > 0 ? `
+          ${saleData.services && saleData.services.length > 0 ? `
+            <div class="bold large-text">Services</div>
+            ${saleData.services.map(service => `
+              <div class="item">
+                <span class="bold">Service #${service.serviceId}</span>
+                <br>Price: $${service.price.toFixed(2)}
+              </div>
+            `).join('<div class="divider"></div>')}
             <div class="divider"></div>
+          ` : ''}
+          
+          ${saleData.products && saleData.products.length > 0 ? `
             <div class="bold large-text">Products</div>
             ${saleData.products.map(product => `
               <div class="item">
@@ -704,9 +709,8 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
                 <br>Price: $${product.price.toFixed(2)}
               </div>
             `).join('<div class="divider"></div>')}
+            <div class="divider"></div>
           ` : ''}
-          
-          <div class="divider"></div>
           
           <div class="totals bold">
             Subtotal: $${saleData.subtotal.toFixed(2)}<br>
@@ -719,12 +723,39 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
           <div class="footer">
             Thank you for your business!
           </div>
+
+          <script>
+            // Add script to calculate and report the content height when page loads
+            window.addEventListener('DOMContentLoaded', () => {
+              // Get the total height of the body content
+              const contentHeight = document.body.scrollHeight;
+              // Store this value for access by the main process
+              window.contentHeight = contentHeight;
+            });
+          </script>
         </body>
       </html>
     `;
 
     log('Loading receipt content...');
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    // Wait for the content to load and execute the script
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Get the calculated height from the page
+    const contentHeight = await printWindow.webContents.executeJavaScript('window.contentHeight');
+
+    log(`Calculated receipt height: ${contentHeight}px`);
+
+    // Convert from pixels to microns (roughly - this conversion factor may need adjustment)
+    // A typical conversion is about 3.8 pixels per millimeter, and 1mm = 1000 microns
+    const heightInMicrons = Math.ceil(contentHeight / 3.8 * 1000);
+
+    // Add a small buffer to ensure complete printing (3cm or 30000 microns)
+    const printHeightWithBuffer = heightInMicrons + 30000;
+
+    log(`Setting print height to: ${printHeightWithBuffer} microns`);
 
     // Create a promise to handle the print completion
     const printPromise = new Promise((resolve, reject) => {
@@ -741,9 +772,8 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
           right: 0
         },
         pageSize: {
-          width: 80000,  // 80mm in microns (this is fine as it's well above minimum)
-          height: 50000  // Setting a fixed height that's well above the minimum 352 microns
-                   // The printer will still cut the paper at the end of content
+          width: 80000,  // 80mm in microns
+          height: printHeightWithBuffer  // Dynamically calculated height plus buffer
         }
       }, (success, failureReason) => {
         if (success) {

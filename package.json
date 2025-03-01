@@ -36,9 +36,11 @@
     "wait-on": "^7.0.1"
   },
   "scripts": {
+    "start": "react-scripts start",
     "copy-electron": "node copy-electron.js",
     "build": "react-scripts build && npm run copy-electron",
-    "electron-pack": "npm run build && electron-builder -w --dir"
+    "electron-pack": "npm run build && electron-builder -w --dir",
+    "dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\""
   },
   "build": {
     "appId": "com.salon-test",

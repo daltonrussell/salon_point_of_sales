@@ -1,10 +1,447 @@
 {
-    "clients": [],
-    "stylists": [],
-    "services": [],
-    "sales": [],
-    "saleItems": [],
-    "inventory": []
-  }
-  
-  
+  "clients": [
+    {
+      "id": "1677628800000",
+      "firstName": "Sarah",
+      "lastName": "Johnson",
+      "phone": "555-123-4567",
+      "email": "sarah.johnson@example.com",
+      "address": "123 Main St, Anytown, CA 94123",
+      "createdAt": "2023-03-01T10:00:00.000Z",
+      "updatedAt": "2023-03-01T10:00:00.000Z"
+    },
+    {
+      "id": "1677715200000",
+      "firstName": "Michael",
+      "lastName": "Chen",
+      "phone": "555-234-5678",
+      "email": "michael.chen@example.com",
+      "address": "456 Oak Ave, Anytown, CA 94123",
+      "createdAt": "2023-03-02T10:00:00.000Z",
+      "updatedAt": "2023-03-02T10:00:00.000Z"
+    },
+    {
+      "id": "1677801600000",
+      "firstName": "Emily",
+      "lastName": "Davis",
+      "phone": "555-345-6789",
+      "email": "emily.davis@example.com",
+      "address": "789 Pine St, Anytown, CA 94123",
+      "createdAt": "2023-03-03T10:00:00.000Z",
+      "updatedAt": "2023-03-03T10:00:00.000Z"
+    },
+    {
+      "id": "1677888000000",
+      "firstName": "David",
+      "lastName": "Wilson",
+      "phone": "555-456-7890",
+      "email": "david.wilson@example.com",
+      "address": null,
+      "createdAt": "2023-03-04T10:00:00.000Z",
+      "updatedAt": "2023-03-04T10:00:00.000Z"
+    },
+    {
+      "id": "1677974400000",
+      "firstName": "Jessica",
+      "lastName": "Brown",
+      "phone": "555-567-8901",
+      "email": "jessica.brown@example.com",
+      "address": "321 Elm St, Anytown, CA 94123",
+      "createdAt": "2023-03-05T10:00:00.000Z",
+      "updatedAt": "2023-03-05T10:00:00.000Z"
+    }
+  ],
+  "stylists": [
+    {
+      "id": "1675209600000",
+      "firstName": "Amelia",
+      "lastName": "Rodriguez",
+      "status": "active",
+      "createdAt": "2023-02-01T10:00:00.000Z",
+      "updatedAt": "2023-02-01T10:00:00.000Z"
+    },
+    {
+      "id": "1675296000000",
+      "firstName": "James",
+      "lastName": "Garcia",
+      "status": "active",
+      "createdAt": "2023-02-02T10:00:00.000Z",
+      "updatedAt": "2023-02-02T10:00:00.000Z"
+    },
+    {
+      "id": "1675382400000",
+      "firstName": "Sophia",
+      "lastName": "Martinez",
+      "status": "active",
+      "createdAt": "2023-02-03T10:00:00.000Z",
+      "updatedAt": "2023-02-03T10:00:00.000Z"
+    },
+    {
+      "id": "1675468800000",
+      "firstName": "Liam",
+      "lastName": "Thompson",
+      "status": "on_leave",
+      "createdAt": "2023-02-04T10:00:00.000Z",
+      "updatedAt": "2023-02-04T10:00:00.000Z"
+    }
+  ],
+  "services": [
+    {
+      "id": "1672531200000",
+      "name": "Haircut",
+      "price": 45,
+      "description": "Basic haircut and style",
+      "status": "active",
+      "createdAt": "2023-01-01T10:00:00.000Z",
+      "updatedAt": "2023-01-01T10:00:00.000Z"
+    },
+    {
+      "id": "1672617600000",
+      "name": "Haircut & Blowout",
+      "price": 65,
+      "description": "Haircut with professional blowout styling",
+      "status": "active",
+      "createdAt": "2023-01-02T10:00:00.000Z",
+      "updatedAt": "2023-01-02T10:00:00.000Z"
+    },
+    {
+      "id": "1672704000000",
+      "name": "Color - Single Process",
+      "price": 85,
+      "description": "Single color application",
+      "status": "active",
+      "createdAt": "2023-01-03T10:00:00.000Z",
+      "updatedAt": "2023-01-03T10:00:00.000Z"
+    },
+    {
+      "id": "1672790400000",
+      "name": "Highlights - Partial",
+      "price": 110,
+      "description": "Partial highlight treatment",
+      "status": "active",
+      "createdAt": "2023-01-04T10:00:00.000Z",
+      "updatedAt": "2023-01-04T10:00:00.000Z"
+    },
+    {
+      "id": "1672876800000",
+      "name": "Highlights - Full",
+      "price": 150,
+      "description": "Full highlight treatment",
+      "status": "active",
+      "createdAt": "2023-01-05T10:00:00.000Z",
+      "updatedAt": "2023-01-05T10:00:00.000Z"
+    },
+    {
+      "id": "1672963200000",
+      "name": "Balayage",
+      "price": 175,
+      "description": "Hand-painted highlights for a natural, dimensional look",
+      "status": "active",
+      "createdAt": "2023-01-06T10:00:00.000Z",
+      "updatedAt": "2023-01-06T10:00:00.000Z"
+    },
+    {
+      "id": "1673049600000",
+      "name": "Deep Conditioning Treatment",
+      "price": 30,
+      "description": "Intensive hair repair and moisture treatment",
+      "status": "active",
+      "createdAt": "2023-01-07T10:00:00.000Z",
+      "updatedAt": "2023-01-07T10:00:00.000Z"
+    },
+    {
+      "id": "1673136000000",
+      "name": "Keratin Treatment",
+      "price": 250,
+      "description": "Smoothing keratin treatment to reduce frizz",
+      "status": "inactive",
+      "createdAt": "2023-01-08T10:00:00.000Z",
+      "updatedAt": "2023-01-08T10:00:00.000Z"
+    }
+  ],
+  "inventory": [
+    {
+      "id": "1669852800000",
+      "productName": "Shampoo - Moisture Repair",
+      "manufacturer": "LuxHair",
+      "purchasePrice": 12.5,
+      "salePrice": 24.99,
+      "quantity": 15,
+      "sku": "SH-MR-001",
+      "createdAt": "2022-12-01T10:00:00.000Z",
+      "updatedAt": "2022-12-01T10:00:00.000Z"
+    },
+    {
+      "id": "1669939200000",
+      "productName": "Conditioner - Moisture Repair",
+      "manufacturer": "LuxHair",
+      "purchasePrice": 12.5,
+      "salePrice": 24.99,
+      "quantity": 12,
+      "sku": "CO-MR-001",
+      "createdAt": "2022-12-02T10:00:00.000Z",
+      "updatedAt": "2022-12-02T10:00:00.000Z"
+    },
+    {
+      "id": "1670025600000",
+      "productName": "Hair Styling Gel - Strong Hold",
+      "manufacturer": "StylePro",
+      "purchasePrice": 9.75,
+      "salePrice": 18.99,
+      "quantity": 8,
+      "sku": "SG-SH-001",
+      "createdAt": "2022-12-03T10:00:00.000Z",
+      "updatedAt": "2022-12-03T10:00:00.000Z"
+    },
+    {
+      "id": "1670112000000",
+      "productName": "Heat Protectant Spray",
+      "manufacturer": "ThermalGuard",
+      "purchasePrice": 10.25,
+      "salePrice": 19.99,
+      "quantity": 10,
+      "sku": "HP-SP-001",
+      "createdAt": "2022-12-04T10:00:00.000Z",
+      "updatedAt": "2022-12-04T10:00:00.000Z"
+    },
+    {
+      "id": "1670198400000",
+      "productName": "Color Protection Shampoo",
+      "manufacturer": "ColorStay",
+      "purchasePrice": 13.75,
+      "salePrice": 26.99,
+      "quantity": 4,
+      "sku": "SH-CP-001",
+      "createdAt": "2022-12-05T10:00:00.000Z",
+      "updatedAt": "2025-03-01T03:48:23.563Z"
+    },
+    {
+      "id": "1670284800000",
+      "productName": "Hair Mask - Deep Repair",
+      "manufacturer": "LuxHair",
+      "purchasePrice": 15,
+      "salePrice": 32.99,
+      "quantity": 5,
+      "sku": "HM-DR-001",
+      "createdAt": "2022-12-06T10:00:00.000Z",
+      "updatedAt": "2022-12-06T10:00:00.000Z"
+    }
+  ],
+  "sales": [
+    {
+      "id": "1677801600001",
+      "ClientId": "1677628800000",
+      "StylistId": "1675209600000",
+      "saleDate": "2023-03-03T14:00:00.000Z",
+      "subtotal": 65,
+      "tax": 5.36,
+      "total": 70.36,
+      "paymentMethod": "credit_card",
+      "createdAt": "2023-03-03T14:00:00.000Z",
+      "updatedAt": "2023-03-03T14:00:00.000Z"
+    },
+    {
+      "id": "1677801600002",
+      "ClientId": "1677715200000",
+      "StylistId": "1675296000000",
+      "saleDate": "2023-03-03T15:30:00.000Z",
+      "subtotal": 175,
+      "tax": 14.44,
+      "total": 189.44,
+      "paymentMethod": "credit_card",
+      "createdAt": "2023-03-03T15:30:00.000Z",
+      "updatedAt": "2023-03-03T15:30:00.000Z"
+    },
+    {
+      "id": "1677888000001",
+      "ClientId": "1677801600000",
+      "StylistId": "1675382400000",
+      "saleDate": "2023-03-04T11:15:00.000Z",
+      "subtotal": 235,
+      "tax": 19.39,
+      "total": 254.39,
+      "paymentMethod": "credit_card",
+      "createdAt": "2023-03-04T11:15:00.000Z",
+      "updatedAt": "2023-03-04T11:15:00.000Z"
+    },
+    {
+      "id": "1677888000002",
+      "ClientId": "1677888000000",
+      "StylistId": "1675209600000",
+      "saleDate": "2023-03-04T13:45:00.000Z",
+      "subtotal": 45,
+      "tax": 3.71,
+      "total": 48.71,
+      "paymentMethod": "cash",
+      "createdAt": "2023-03-04T13:45:00.000Z",
+      "updatedAt": "2023-03-04T13:45:00.000Z"
+    },
+    {
+      "id": "1677974400001",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "saleDate": "2023-03-05T10:30:00.000Z",
+      "subtotal": 100.98,
+      "tax": 8.33,
+      "total": 109.31,
+      "paymentMethod": "credit_card",
+      "createdAt": "2023-03-05T10:30:00.000Z",
+      "updatedAt": "2023-03-05T10:30:00.000Z"
+    },
+    {
+      "id": "1740799991355",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 25.1,
+      "tax": 2.008,
+      "total": 27.108,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-01T03:33:11.355Z",
+      "createdAt": "2025-03-01T03:33:11.355Z",
+      "updatedAt": "2025-03-01T03:33:11.355Z"
+    },
+    {
+      "id": "1740800903562",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 52.09,
+      "tax": 4.1672,
+      "total": 56.257200000000005,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-01T03:48:23.562Z",
+      "createdAt": "2025-03-01T03:48:23.562Z",
+      "updatedAt": "2025-03-01T03:48:23.562Z"
+    }
+  ],
+  "saleItems": [
+    {
+      "id": "1677801600003",
+      "SaleId": "1677801600001",
+      "price": 65,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1672617600000",
+      "InventoryId": null,
+      "createdAt": "2023-03-03T14:00:00.000Z",
+      "updatedAt": "2023-03-03T14:00:00.000Z"
+    },
+    {
+      "id": "1677801600004",
+      "SaleId": "1677801600002",
+      "price": 175,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1672963200000",
+      "InventoryId": null,
+      "createdAt": "2023-03-03T15:30:00.000Z",
+      "updatedAt": "2023-03-03T15:30:00.000Z"
+    },
+    {
+      "id": "1677888000003",
+      "SaleId": "1677888000001",
+      "price": 150,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1672876800000",
+      "InventoryId": null,
+      "createdAt": "2023-03-04T11:15:00.000Z",
+      "updatedAt": "2023-03-04T11:15:00.000Z"
+    },
+    {
+      "id": "1677888000004",
+      "SaleId": "1677888000001",
+      "price": 45,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1672531200000",
+      "InventoryId": null,
+      "createdAt": "2023-03-04T11:15:00.000Z",
+      "updatedAt": "2023-03-04T11:15:00.000Z"
+    },
+    {
+      "id": "1677888000005",
+      "SaleId": "1677888000001",
+      "price": 19.99,
+      "quantity": 2,
+      "itemType": "product",
+      "ServiceId": null,
+      "InventoryId": "1670112000000",
+      "createdAt": "2023-03-04T11:15:00.000Z",
+      "updatedAt": "2023-03-04T11:15:00.000Z"
+    },
+    {
+      "id": "1677888000006",
+      "SaleId": "1677888000002",
+      "price": 45,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1672531200000",
+      "InventoryId": null,
+      "createdAt": "2023-03-04T13:45:00.000Z",
+      "updatedAt": "2023-03-04T13:45:00.000Z"
+    },
+    {
+      "id": "1677974400002",
+      "SaleId": "1677974400001",
+      "price": 45,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1672531200000",
+      "InventoryId": null,
+      "createdAt": "2023-03-05T10:30:00.000Z",
+      "updatedAt": "2023-03-05T10:30:00.000Z"
+    },
+    {
+      "id": "1677974400003",
+      "SaleId": "1677974400001",
+      "price": 30,
+      "quantity": 1,
+      "itemType": "service",
+      "ServiceId": "1673049600000",
+      "InventoryId": null,
+      "createdAt": "2023-03-05T10:30:00.000Z",
+      "updatedAt": "2023-03-05T10:30:00.000Z"
+    },
+    {
+      "id": "1677974400004",
+      "SaleId": "1677974400001",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "ServiceId": null,
+      "InventoryId": "1669939200000",
+      "createdAt": "2023-03-05T10:30:00.000Z",
+      "updatedAt": "2023-03-05T10:30:00.000Z"
+    },
+    {
+      "id": "1740799991357",
+      "SaleId": "1740799991355",
+      "InventoryId": "1670198400000",
+      "price": 25.1,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-01T03:33:11.357Z",
+      "updatedAt": "2025-03-01T03:33:11.357Z"
+    },
+    {
+      "id": "1740800903563",
+      "SaleId": "1740800903562",
+      "InventoryId": "1670198400000",
+      "price": 25.1,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-01T03:48:23.563Z",
+      "updatedAt": "2025-03-01T03:48:23.563Z"
+    },
+    {
+      "id": "1740800903563",
+      "SaleId": "1740800903562",
+      "InventoryId": "1670198400000",
+      "price": 26.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-01T03:48:23.563Z",
+      "updatedAt": "2025-03-01T03:48:23.563Z"
+    }
+  ]
+}
