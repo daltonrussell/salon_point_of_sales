@@ -979,3 +979,32 @@ ipcMain.handle('void-sale', async (event, { saleId, voidReason }) => {
     throw error;
   }
 });
+
+// Update Inventory Handler
+ipcMain.handle('update-inventory', async (event, itemData) => {
+  try {
+    const { id, ...updateData } = itemData;
+
+    // Find the inventory item
+    const inventoryItem = db.get('inventory').find({ id });
+
+    if (!inventoryItem.value()) {
+      throw new Error('Inventory item not found');
+    }
+
+    // Update the inventory item with new data
+    inventoryItem.assign({
+      ...updateData,
+      // Ensure numeric fields are stored as numbers
+      purchasePrice: Number(updateData.purchasePrice),
+      salePrice: Number(updateData.salePrice),
+      quantity: Number(updateData.quantity),
+      updatedAt: new Date()
+    }).write();
+
+    return inventoryItem.value();
+  } catch (error) {
+    log('Error updating inventory item:', error);
+    throw error;
+  }
+});

@@ -210,10 +210,10 @@
       "manufacturer": "ColorStay",
       "purchasePrice": 13.75,
       "salePrice": 26.99,
-      "quantity": 7,
+      "quantity": 4,
       "sku": "SH-CP-001",
       "createdAt": "2022-12-05T10:00:00.000Z",
-      "updatedAt": "2025-03-02T01:35:20.029Z"
+      "updatedAt": "2025-03-02T01:55:26.979Z"
     },
     {
       "id": "1670284800000",
@@ -314,6 +314,30 @@
       "saleDate": "2025-03-01T03:48:23.562Z",
       "createdAt": "2025-03-01T03:48:23.562Z",
       "updatedAt": "2025-03-01T03:48:23.562Z"
+    },
+    {
+      "id": "1740880506800",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 26.99,
+      "tax": 2.1592,
+      "total": 29.149199999999997,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-02T01:55:06.800Z",
+      "createdAt": "2025-03-02T01:55:06.800Z",
+      "updatedAt": "2025-03-02T01:55:06.800Z"
+    },
+    {
+      "id": "1740880526979",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 26.99,
+      "tax": 2.1592,
+      "total": 29.149199999999997,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-02T01:55:26.979Z",
+      "createdAt": "2025-03-02T01:55:26.979Z",
+      "updatedAt": "2025-03-02T01:55:26.979Z"
     }
   ],
   "saleItems": [
@@ -445,6 +469,26 @@
       "itemType": "product",
       "createdAt": "2025-03-01T03:48:23.563Z",
       "updatedAt": "2025-03-01T03:48:23.563Z"
+    },
+    {
+      "id": "1740880506800",
+      "SaleId": "1740880506800",
+      "InventoryId": "1670198400000",
+      "price": 26.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-02T01:55:06.800Z",
+      "updatedAt": "2025-03-02T01:55:06.800Z"
+    },
+    {
+      "id": "1740880526980",
+      "SaleId": "1740880526979",
+      "InventoryId": "1670198400000",
+      "price": 26.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-02T01:55:26.980Z",
+      "updatedAt": "2025-03-02T01:55:26.980Z"
     }
   ]
 }
