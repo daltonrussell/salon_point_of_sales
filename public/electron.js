@@ -858,3 +858,45 @@ ipcMain.handle('get-customer-sales', async (event, { clientId, startDate, endDat
     throw error;
   }
 });
+
+ipcMain.handle('void-sale', async (event, { saleId, voidReason }) => {
+  try {
+    const sale = db.get('sales').find({ id: saleId });
+
+    if (!sale.value()) {
+      throw new Error('Sale not found');
+    }
+
+    // Update the sale with void information
+    sale.assign({
+      isVoided: true,
+      voidReason: voidReason || null,
+      voidedAt: new Date(),
+      updatedAt: new Date()
+    }).write();
+
+    // If this is a product sale, we may want to return inventory
+    const saleItems = db.get('saleItems')
+      .filter({ SaleId: saleId, itemType: 'product' })
+      .value();
+
+    // Return products to inventory
+    for (const item of saleItems) {
+      if (item.InventoryId) {
+        const inventoryItem = db.get('inventory').find({ id: item.InventoryId });
+        if (inventoryItem.value()) {
+          // Increase inventory quantity
+          inventoryItem.assign({
+            quantity: inventoryItem.value().quantity + item.quantity,
+            updatedAt: new Date()
+          }).write();
+        }
+      }
+    }
+
+    return { success: true, sale: sale.value() };
+  } catch (error) {
+    log('Error voiding sale:', error);
+    throw error;
+  }
+});

@@ -210,10 +210,10 @@
       "manufacturer": "ColorStay",
       "purchasePrice": 13.75,
       "salePrice": 26.99,
-      "quantity": 4,
+      "quantity": 5,
       "sku": "SH-CP-001",
       "createdAt": "2022-12-05T10:00:00.000Z",
-      "updatedAt": "2025-03-01T03:48:23.563Z"
+      "updatedAt": "2025-03-02T01:01:42.234Z"
     },
     {
       "id": "1670284800000",
@@ -298,7 +298,10 @@
       "paymentMethod": "Cash",
       "saleDate": "2025-03-01T03:33:11.355Z",
       "createdAt": "2025-03-01T03:33:11.355Z",
-      "updatedAt": "2025-03-01T03:33:11.355Z"
+      "updatedAt": "2025-03-02T01:01:42.232Z",
+      "isVoided": true,
+      "voidReason": null,
+      "voidedAt": "2025-03-02T01:01:42.232Z"
     },
     {
       "id": "1740800903562",

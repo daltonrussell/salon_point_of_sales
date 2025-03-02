@@ -17,23 +17,148 @@ import {
   Typography,
   Chip,
   Divider,
-  Tooltip
+  Tooltip,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
 } from '@mui/material';
 import {
   Search as SearchIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   CalendarToday as CalendarIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 
 const { ipcRenderer } = window.require('electron');
+
+const SaleCard = ({ sale, onVoid, disabled }) => {
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+
+  const handleVoidSale = () => {
+    onVoid(sale.id, voidReason);
+    setVoidDialogOpen(false);
+    setVoidReason('');
+  };
+
+  return (
+    <Box
+      key={sale.id}
+      sx={{
+        mb: 2,
+        p: 2,
+        border: '1px solid rgba(0, 0, 0, 0.12)',
+        borderRadius: 1,
+        backgroundColor: sale.isVoided ? 'rgba(244, 67, 54, 0.08)' : 'inherit'
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CalendarIcon fontSize="small" color="action" />
+          <Typography variant="body2">
+            {new Date(sale.saleDate).toLocaleDateString()}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon fontSize="small" color="action" />
+          <Typography variant="body2">
+            Stylist: {sale.stylist}
+          </Typography>
+        </Box>
+        <Typography
+          variant="body2"
+          fontWeight="bold"
+          sx={{
+            textDecoration: sale.isVoided ? 'line-through' : 'none',
+            color: sale.isVoided ? 'text.disabled' : 'text.primary'
+          }}
+        >
+          Total: ${sale.total.toFixed(2)}
+          {sale.isVoided && ' (VOIDED)'}
+        </Typography>
+      </Box>
+
+      <Divider sx={{ my: 1 }} />
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {sale.items.map((item, idx) => (
+            <Chip
+              key={idx}
+              label={`${item.name} ${item.quantity > 1 ? `(x${item.quantity})` : ''}`}
+              color={item.type === 'service' ? 'primary' : 'success'}
+              variant="outlined"
+              size="small"
+              sx={{
+                opacity: sale.isVoided ? 0.6 : 1,
+                textDecoration: sale.isVoided ? 'line-through' : 'none'
+              }}
+            />
+          ))}
+        </Box>
+
+        {!sale.isVoided && (
+          <Button
+            size="small"
+            color="error"
+            startIcon={<CancelIcon />}
+            onClick={() => setVoidDialogOpen(true)}
+            disabled={disabled}
+          >
+            Void
+          </Button>
+        )}
+
+        {sale.isVoided && (
+          <Chip
+            label={sale.voidReason || "Voided"}
+            color="error"
+            size="small"
+            variant="outlined"
+          />
+        )}
+      </Box>
+
+      {/* Void confirmation dialog */}
+      <Dialog open={voidDialogOpen} onClose={() => setVoidDialogOpen(false)}>
+        <DialogTitle>Void Sale</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to void this sale? This action will remove the sale from reports and return any products to inventory.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Reason for voiding (optional)"
+            fullWidth
+            variant="outlined"
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVoidDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleVoidSale} color="error">
+            Void Sale
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
 
 // Row component with expandable details
 const CustomerRow = ({ customer, onExpandError }) => {
   const [open, setOpen] = useState(false);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
+  // NEW: Add state for tracking void processing
+  const [processingVoid, setProcessingVoid] = useState(false);
 
   const handleExpand = async () => {
     if (!open && sales.length === 0) {
@@ -59,6 +184,28 @@ const CustomerRow = ({ customer, onExpandError }) => {
       }
     }
     setOpen(!open);
+  };
+
+  // NEW: Add handler for voiding sales
+  const handleVoidSale = async (saleId, voidReason) => {
+    setProcessingVoid(true);
+    try {
+      await ipcRenderer.invoke('void-sale', { saleId, voidReason });
+
+      // Update the local state to reflect the voided sale
+      setSales(prevSales =>
+        prevSales.map(sale =>
+          sale.id === saleId
+            ? { ...sale, isVoided: true, voidReason }
+            : sale
+        )
+      );
+    } catch (error) {
+      console.error('Error voiding sale:', error);
+      onExpandError('Failed to void sale. Please try again.');
+    } finally {
+      setProcessingVoid(false);
+    }
   };
 
   return (
@@ -93,48 +240,14 @@ const CustomerRow = ({ customer, onExpandError }) => {
                 <Typography color="text.secondary">No sales history found for this customer.</Typography>
               ) : (
                 <Box>
+                  {/* CHANGED: Replace the Box component with SaleCard component */}
                   {sales.map((sale) => (
-                    <Box
+                    <SaleCard
                       key={sale.id}
-                      sx={{
-                        mb: 2,
-                        p: 2,
-                        border: '1px solid rgba(0, 0, 0, 0.12)',
-                        borderRadius: 1
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <CalendarIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            {new Date(sale.saleDate).toLocaleDateString()}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <PersonIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            Stylist: {sale.stylist}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          Total: ${sale.total.toFixed(2)}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {sale.items.map((item, idx) => (
-                          <Chip
-                            key={idx}
-                            label={`${item.name} ${item.quantity > 1 ? `(x${item.quantity})` : ''}`}
-                            color={item.type === 'service' ? 'primary' : 'success'}
-                            variant="outlined"
-                            size="small"
-                          />
-                        ))}
-                      </Box>
-                    </Box>
+                      sale={sale}
+                      onVoid={handleVoidSale}
+                      disabled={processingVoid}
+                    />
                   ))}
                 </Box>
               )}
