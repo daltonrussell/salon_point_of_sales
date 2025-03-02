@@ -801,3 +801,60 @@ ipcMain.handle('print-receipt', async (event, { saleData, businessInfo }) => {
     throw error;
   }
 });
+
+// Customer Sales Handler
+ipcMain.handle('get-customer-sales', async (event, { clientId, startDate, endDate }) => {
+  try {
+    // Get all sales for this client within the date range
+    const sales = db.get('sales')
+      .filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        return sale.ClientId === clientId &&
+               saleDate >= new Date(startDate) &&
+               saleDate <= new Date(endDate);
+      })
+      .value();
+
+    // Format the sales data with related information
+    const formattedSales = sales.map(sale => {
+      const stylist = db.get('stylists').find({ id: sale.StylistId }).value();
+      const saleItems = db.get('saleItems').filter({ SaleId: sale.id }).value();
+
+      const items = saleItems.map(item => {
+        if (item.itemType === 'service') {
+          const service = db.get('services').find({ id: item.ServiceId }).value();
+          return {
+            type: 'service',
+            name: service ? service.name : 'Unknown Service',
+            price: item.price,
+            quantity: item.quantity || 1
+          };
+        } else {
+          const product = db.get('inventory').find({ id: item.InventoryId }).value();
+          return {
+            type: 'product',
+            name: product ? product.productName : 'Unknown Product',
+            price: item.price,
+            quantity: item.quantity || 1
+          };
+        }
+      });
+
+      return {
+        id: sale.id,
+        saleDate: sale.saleDate,
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        stylist: stylist ? `${stylist.firstName} ${stylist.lastName}` : 'Unknown',
+        items
+      };
+    });
+
+    return formattedSales;
+  } catch (error) {
+    log('Error fetching customer sales:', error);
+    throw error;
+  }
+});

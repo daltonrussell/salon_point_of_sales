@@ -5,6 +5,7 @@ import SalesForm from './components/sales/SalesForm';
 import Settings from './components/settings/Settings';
 import ReportsModule from './components/reports/ReportsModule';
 import InventoryPage from "./pages/InventoryPage";
+import CustomersPage from "./pages/CustomersPage";
 
 function App() {
   const [selectedMenuItem, setSelectedMenuItem] = useState('sales');
@@ -14,7 +15,7 @@ function App() {
       case 'sales':
         return <SalesForm />;
       case 'customers':
-        return <div>Customers Page (Coming Soon)</div>;
+        return <CustomersPage/>;
       case 'inventory':
         return <InventoryPage />;
       case 'reports':
