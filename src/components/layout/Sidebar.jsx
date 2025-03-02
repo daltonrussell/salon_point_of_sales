@@ -12,15 +12,17 @@ import {
   People,
   Inventory,
   Settings,
-  Assessment
+  Assessment,
+  ContentCut
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 240;
 
 const menuItems = [
   { text: 'Sales', icon: <PointOfSale />, id: 'sales' },
-  { text: 'Customers', icon: <People />, id: 'customers' }, // TODO: Need to add a table of clients, show last date, last service, etc... when clicked, show all services and product every bought
+  { text: 'Customers', icon: <People />, id: 'customers' },
   { text: 'Inventory', icon: <Inventory />, id: 'inventory' },
+  { text: 'Services', icon: <ContentCut />, id: 'services' },
   { text: 'Reports', icon: <Assessment />, id: 'reports' },
   { text: 'Settings', icon: <Settings />, id: 'settings' },
 ];

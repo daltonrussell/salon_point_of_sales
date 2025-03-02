@@ -82,9 +82,7 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
           {sale.isVoided && ' (VOIDED)'}
         </Typography>
       </Box>
-
       <Divider sx={{ my: 1 }} />
-
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {sale.items.map((item, idx) => (
@@ -101,7 +99,6 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
             />
           ))}
         </Box>
-
         {!sale.isVoided && (
           <Button
             size="small"
@@ -113,7 +110,6 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
             Void
           </Button>
         )}
-
         {sale.isVoided && (
           <Chip
             label={sale.voidReason || "Voided"}
@@ -123,7 +119,6 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
           />
         )}
       </Box>
-
       {/* Void confirmation dialog */}
       <Dialog open={voidDialogOpen} onClose={() => setVoidDialogOpen(false)}>
         <DialogTitle>Void Sale</DialogTitle>
@@ -157,7 +152,6 @@ const CustomerRow = ({ customer, onExpandError }) => {
   const [open, setOpen] = useState(false);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
-  // NEW: Add state for tracking void processing
   const [processingVoid, setProcessingVoid] = useState(false);
 
   const handleExpand = async () => {
@@ -186,7 +180,6 @@ const CustomerRow = ({ customer, onExpandError }) => {
     setOpen(!open);
   };
 
-  // NEW: Add handler for voiding sales
   const handleVoidSale = async (saleId, voidReason) => {
     setProcessingVoid(true);
     try {
@@ -208,55 +201,52 @@ const CustomerRow = ({ customer, onExpandError }) => {
     }
   };
 
-  return (
-    <>
-      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
-        <TableCell>
-          <IconButton
-            aria-label="expand row"
-            size="small"
-            onClick={handleExpand}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell component="th" scope="row">
-          {customer.lastName}, {customer.firstName}
-        </TableCell>
-        <TableCell>{customer.phone || 'N/A'}</TableCell>
-        <TableCell>{customer.email || 'N/A'}</TableCell>
-        <TableCell>{new Date(customer.createdAt).toLocaleDateString()}</TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 2 }}>
-              <Typography variant="h6" gutterBottom component="div">
-                Sales History
-              </Typography>
-              {loading ? (
-                <Typography>Loading sales history...</Typography>
-              ) : sales.length === 0 ? (
-                <Typography color="text.secondary">No sales history found for this customer.</Typography>
-              ) : (
-                <Box>
-                  {/* CHANGED: Replace the Box component with SaleCard component */}
-                  {sales.map((sale) => (
-                    <SaleCard
-                      key={sale.id}
-                      sale={sale}
-                      onVoid={handleVoidSale}
-                      disabled={processingVoid}
-                    />
-                  ))}
-                </Box>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
-  );
+  return (<>
+    <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+      <TableCell>
+        <IconButton
+          aria-label="expand row"
+          size="small"
+          onClick={handleExpand}
+        >
+          {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+        </IconButton>
+      </TableCell>
+      <TableCell component="th" scope="row">
+        {customer.lastName}, {customer.firstName}
+      </TableCell>
+      <TableCell>{customer.phone || 'N/A'}</TableCell>
+      <TableCell>{customer.email || 'N/A'}</TableCell>
+      <TableCell>{new Date(customer.createdAt).toLocaleDateString()}</TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+        <Collapse in={open} timeout="auto" unmountOnExit>
+          <Box sx={{ margin: 2 }}>
+            <Typography variant="h6" gutterBottom component="div">
+              Sales History
+            </Typography>
+            {loading ? (
+              <Typography>Loading sales history...</Typography>
+            ) : sales.length === 0 ? (
+              <Typography color="text.secondary">No sales history found for this customer.</Typography>
+            ) : (
+              <Box>
+                {sales.map((sale) => (
+                  <SaleCard
+                    key={sale.id}
+                    sale={sale}
+                    onVoid={handleVoidSale}
+                    disabled={processingVoid}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        </Collapse>
+      </TableCell>
+    </TableRow>
+  </>);
 };
 
 const CustomersPage = () => {
@@ -331,7 +321,7 @@ const CustomersPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell width={50} /> {/* Expand/collapse column */}
+              <TableCell width={50} />
               <TableCell>Name</TableCell>
               <TableCell>Phone</TableCell>
               <TableCell>Email</TableCell>

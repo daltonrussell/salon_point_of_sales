@@ -24,6 +24,7 @@ const paymentMethods = [
   'Cash',
   'Credit Card',
   'Debit Card',
+  'Check',
 ];
 
 
@@ -120,10 +121,13 @@ function SalesForm() {
   };
 
   const loadServices = async () => {
-    setServices([
-      { id: 1, name: 'Haircut', price: 30 },
-      { id: 2, name: 'Color', price: 80 },
-    ]);
+    try {
+      // Get only active services for the sales form
+      const data = await ipcRenderer.invoke('get-services', 'active');
+      setServices(data);
+    } catch (error) {
+      console.error('Error loading services:', error);
+    }
   };
 
   const loadAllClients = async () => {
@@ -569,16 +573,18 @@ function SalesForm() {
 
             <Grid item xs={4}>
               <Tooltip title="Mark product as used in salon (not for sale)">
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={handleBackBar}
-                  disabled={!selectedProduct || productQuantity < 1}
-                  fullWidth
-                  sx={{ height: '56px' }}
-                >
-                  BACK BAR
-                </Button>
+                <span>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleBackBar}
+                    disabled={!selectedProduct || productQuantity < 1}
+                    fullWidth
+                    sx={{ height: '56px' }}
+                  >
+                    BACK BAR
+                  </Button>
+                </span>
               </Tooltip>
             </Grid>
           </Grid>

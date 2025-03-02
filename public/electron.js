@@ -62,7 +62,9 @@ function createWindow() {
   mainWindow.webContents.on('did-start-loading', () => log('Started loading content'));
   mainWindow.webContents.on('did-finish-load', () => {
     log('Finished loading content');
-    mainWindow.webContents.openDevTools();
+    if (isDev) {
+      mainWindow.webContents.openDevTools();
+    }
   });
   mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
     log('Failed to load:', errorCode, errorDescription);

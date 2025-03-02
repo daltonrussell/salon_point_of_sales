@@ -154,9 +154,9 @@
       "name": "Keratin Treatment",
       "price": 250,
       "description": "Smoothing keratin treatment to reduce frizz",
-      "status": "inactive",
+      "status": "active",
       "createdAt": "2023-01-08T10:00:00.000Z",
-      "updatedAt": "2023-01-08T10:00:00.000Z"
+      "updatedAt": "2025-03-02T02:15:17.050Z"
     }
   ],
   "inventory": [
@@ -199,10 +199,10 @@
       "manufacturer": "ThermalGuard",
       "purchasePrice": 10.25,
       "salePrice": 19.99,
-      "quantity": 10,
+      "quantity": 9,
       "sku": "HP-SP-001",
       "createdAt": "2022-12-04T10:00:00.000Z",
-      "updatedAt": "2022-12-04T10:00:00.000Z"
+      "updatedAt": "2025-03-02T02:05:55.452Z"
     },
     {
       "id": "1670198400000",
@@ -338,6 +338,18 @@
       "saleDate": "2025-03-02T01:55:26.979Z",
       "createdAt": "2025-03-02T01:55:26.979Z",
       "updatedAt": "2025-03-02T01:55:26.979Z"
+    },
+    {
+      "id": "1740881155452",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 194.99,
+      "tax": 1.5992,
+      "total": 196.5892,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-02T02:05:55.452Z",
+      "createdAt": "2025-03-02T02:05:55.452Z",
+      "updatedAt": "2025-03-02T02:05:55.452Z"
     }
   ],
   "saleItems": [
@@ -489,6 +501,26 @@
       "itemType": "product",
       "createdAt": "2025-03-02T01:55:26.980Z",
       "updatedAt": "2025-03-02T01:55:26.980Z"
+    },
+    {
+      "id": "1740881155452",
+      "SaleId": "1740881155452",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-02T02:05:55.452Z",
+      "updatedAt": "2025-03-02T02:05:55.452Z"
+    },
+    {
+      "id": "1740881155452",
+      "SaleId": "1740881155452",
+      "InventoryId": "1670112000000",
+      "price": 19.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-02T02:05:55.452Z",
+      "updatedAt": "2025-03-02T02:05:55.452Z"
     }
   ]
 }
