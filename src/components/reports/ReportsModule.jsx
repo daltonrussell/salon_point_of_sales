@@ -3,6 +3,7 @@ import PDFTableExport from './PDFTableExport';
 import StylistSalesTable from './StylistSalesTable';
 import InventoryTaxTable from './InventoryTaxTable';
 import ClientsServedTable from './ClientsServedTable';
+import VoidedSalesTable from './VoidedSalesTable'; // You'll need to create this component
 import {
   Box,
   Paper,
@@ -14,6 +15,11 @@ import {
   Select,
   FormControl,
   InputLabel,
+  FormControlLabel,
+  Checkbox,
+  Tooltip,
+  Typography,
+  Divider
 } from '@mui/material';
 const { ipcRenderer } = window.require('electron');
 
@@ -25,13 +31,14 @@ function ReportsModule() {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState(null);
   const [reportType, setReportType] = useState('stylist-sales');
+  const [includeVoided, setIncludeVoided] = useState(false);
 
   // Report type options
   const reportTypes = [
     { value: 'stylist-sales', label: 'Stylist Sales Report' },
     { value: 'inventory-tax', label: 'Inventory Tax Report' },
     { value: 'clients-served', label: 'Clients Served Report' },
-    { value: 'commission-tips', label: 'Commission & Tips Report' }
+    { value: 'voided-sales', label: 'Voided Sales Report' }
   ];
 
   useEffect(() => {
@@ -60,27 +67,29 @@ function ReportsModule() {
           result = await ipcRenderer.invoke('get-stylist-sales', {
             stylistId: selectedStylist?.id,
             startDate: startDateTime,
-            endDate: endDateTime
+            endDate: endDateTime,
+            includeVoided
           });
           break;
 
         case 'inventory-tax':
           result = await ipcRenderer.invoke('get-inventory-tax-report', {
             startDate: startDateTime,
-            endDate: endDateTime
+            endDate: endDateTime,
+            includeVoided
           });
           break;
 
         case 'clients-served':
           result = await ipcRenderer.invoke('get-clients-served-report', {
             startDate: startDateTime,
-            endDate: endDateTime
+            endDate: endDateTime,
+            includeVoided
           });
           break;
 
-        case 'commission-tips':
-          result = await ipcRenderer.invoke('get-commission-report', {
-            stylistId: selectedStylist?.id,
+        case 'voided-sales':
+          result = await ipcRenderer.invoke('get-voided-sales-report', {
             startDate: startDateTime,
             endDate: endDateTime
           });
@@ -103,11 +112,11 @@ function ReportsModule() {
 
     switch (reportType) {
       case 'stylist-sales':
-      return <StylistSalesTable
-        data={reportData || []}
-        startDate={startDateTime}
-        endDate={endDateTime}
-      />;
+        return <StylistSalesTable
+          data={reportData || []}
+          startDate={startDateTime}
+          endDate={endDateTime}
+        />;
 
       case 'inventory-tax':
         return <InventoryTaxTable
@@ -123,6 +132,13 @@ function ReportsModule() {
           endDate={endDateTime}
         />;
 
+      case 'voided-sales':
+        return <VoidedSalesTable
+          data={reportData || []}
+          startDate={startDateTime}
+          endDate={endDateTime}
+        />;
+
       default:
         return null;
     }
@@ -131,20 +147,26 @@ function ReportsModule() {
   return (
     <Box>
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={3}>
+        <Typography variant="h6" gutterBottom>
+          Generate Report
+        </Typography>
+
+        {/* First Row - Report Type and Stylist Selector */}
+        <Grid container spacing={3} alignItems="center" sx={{ mb: 2 }}>
+          <Grid item xs={6} md={4}>
             <FormControl fullWidth>
               <InputLabel>Report Type</InputLabel>
               <Select
                 value={reportType}
                 label="Report Type"
-                onChange={(e) =>
-                {
-                  setReportData(null)
-                  setReportType(e.target.value)
-                }
-              }
-
+                onChange={(e) => {
+                  setReportData(null);
+                  setReportType(e.target.value);
+                  // Reset includeVoided when switching to voided-sales report
+                  if (e.target.value === 'voided-sales') {
+                    setIncludeVoided(false);
+                  }
+                }}
               >
                 {reportTypes.map(type => (
                   <MenuItem key={type.value} value={type.value}>
@@ -156,7 +178,7 @@ function ReportsModule() {
           </Grid>
 
           {['stylist-sales', 'commission-tips'].includes(reportType) && (
-            <Grid item xs={3}>
+            <Grid item xs={6} md={4}>
               <Autocomplete
                 options={stylists}
                 getOptionLabel={(option) =>
@@ -176,7 +198,33 @@ function ReportsModule() {
             </Grid>
           )}
 
-          <Grid item xs={2}>
+          {/* Checkbox for including voided sales - not shown for voided-sales report */}
+          {reportType !== 'voided-sales' && (
+            <Grid item xs={6} md={4}>
+              <Tooltip title="Include voided sales in the report">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={includeVoided}
+                      onChange={(e) => setIncludeVoided(e.target.checked)}
+                    />
+                  }
+                  label="Include Voided Sales"
+                />
+              </Tooltip>
+            </Grid>
+          )}
+        </Grid>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Second Row - Date Range Selectors */}
+        <Typography variant="subtitle1" gutterBottom>
+          Date Range
+        </Typography>
+
+        <Grid container spacing={3} alignItems="center" sx={{ mb: 2 }}>
+          <Grid item xs={12} sm={6} md={5}>
             <TextField
               label="Start Date"
               type="date"
@@ -187,7 +235,7 @@ function ReportsModule() {
             />
           </Grid>
 
-          <Grid item xs={2}>
+          <Grid item xs={12} sm={6} md={5}>
             <TextField
               label="End Date"
               type="date"
@@ -198,7 +246,7 @@ function ReportsModule() {
             />
           </Grid>
 
-          <Grid item xs={2}>
+          <Grid item xs={12} md={2}>
             <Button
               variant="contained"
               onClick={generateReport}
@@ -207,6 +255,8 @@ function ReportsModule() {
                 (['stylist-sales', 'commission-tips'].includes(reportType) && !selectedStylist)
               }
               fullWidth
+              size="large"
+              sx={{ height: '56px' }}
             >
               Generate Report
             </Button>
@@ -224,6 +274,7 @@ function ReportsModule() {
             reportType={reportType}
             startDate={startDate + 'T00:01:00'}
             endDate={endDate + 'T23:59:59.999'}
+            includeVoided={includeVoided}
           />
         </Paper>
       )}

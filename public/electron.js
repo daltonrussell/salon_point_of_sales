@@ -348,16 +348,21 @@ ipcMain.handle('create-sale', async (event, {
 });
 
 // Reports
-ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDate }) => {
+ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDate, includeVoided = false }) => {
   try {
-    const sales = db.get('sales')
+    let salesQuery = db.get('sales')
       .filter(sale => {
         const saleDate = new Date(sale.saleDate);
-        return sale.StylistId === stylistId &&
-               saleDate >= new Date(startDate) &&
-               saleDate <= new Date(endDate);
-      })
-      .value();
+        const matchesStylist = sale.StylistId === stylistId;
+        const inDateRange = saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+
+        // Only include non-voided sales unless explicitly requested
+        const voidCheck = includeVoided ? true : !sale.isVoided;
+
+        return matchesStylist && inDateRange && voidCheck;
+      });
+
+    const sales = salesQuery.value();
 
     const formattedSales = sales.map(sale => {
       const client = db.get('clients').find({ id: sale.ClientId }).value();
@@ -365,7 +370,7 @@ ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDat
       const saleItems = db.get('saleItems').filter({ SaleId: sale.id }).value();
 
       const items = saleItems.map(item => {
-        const service = item.itemType === 'service' 
+        const service = item.itemType === 'service'
           ? db.get('services').find({ id: item.ServiceId }).value()
           : null;
         const product = item.itemType === 'product'
@@ -387,6 +392,9 @@ ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDat
         tax: sale.tax,
         total: sale.total,
         paymentMethod: sale.paymentMethod,
+        isVoided: !!sale.isVoided,
+        voidReason: sale.voidReason || null,
+        voidedAt: sale.voidedAt || null,
         client: client ? `${client.firstName} ${client.lastName}` : 'N/A',
         stylist: stylist ? `${stylist.firstName} ${stylist.lastName}` : 'N/A',
         items
@@ -401,14 +409,29 @@ ipcMain.handle('get-stylist-sales', async (event, { stylistId, startDate, endDat
 });
 
 // Inventory Reports
-ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate }) => {
+ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate, includeVoided = false }) => {
   try {
+    // First, get all sales in the date range
+    const sales = db.get('sales')
+      .filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        const inDateRange = saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+
+        // Only include non-voided sales unless explicitly requested
+        const voidCheck = includeVoided ? true : !sale.isVoided;
+
+        return inDateRange && voidCheck;
+      })
+      .value();
+
+    // Get IDs of non-voided sales for filtering sale items
+    const validSaleIds = sales.map(sale => sale.id);
+
+    // Filter sale items to only include those from valid sales
     const saleItems = db.get('saleItems')
       .filter(item => {
-        const createdAt = new Date(item.createdAt);
-        return item.itemType === 'product' &&
-               createdAt >= new Date(startDate) &&
-               createdAt <= new Date(endDate);
+        return validSaleIds.includes(item.SaleId) &&
+               item.itemType === 'product';
       })
       .value();
 
@@ -441,13 +464,17 @@ ipcMain.handle('get-inventory-tax-report', async (event, { startDate, endDate })
 });
 
 // Client Report
-ipcMain.handle('get-clients-served-report', async (event, { startDate, endDate }) => {
+ipcMain.handle('get-clients-served-report', async (event, { startDate, endDate, includeVoided = false }) => {
   try {
     const sales = db.get('sales')
       .filter(sale => {
         const saleDate = new Date(sale.saleDate);
-        return saleDate >= new Date(startDate) &&
-               saleDate <= new Date(endDate);
+        const inDateRange = saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+
+        // Only include non-voided sales unless explicitly requested
+        const voidCheck = includeVoided ? true : !sale.isVoided;
+
+        return inDateRange && voidCheck;
       })
       .value();
 
@@ -473,6 +500,8 @@ ipcMain.handle('get-clients-served-report', async (event, { startDate, endDate }
 
       return {
         date: sale.saleDate,
+        isVoided: !!sale.isVoided,
+        voidReason: sale.voidReason || null,
         client: {
           firstName: client?.firstName,
           lastName: client?.lastName
@@ -495,6 +524,56 @@ ipcMain.handle('get-clients-served-report', async (event, { startDate, endDate }
     return formattedData;
   } catch (error) {
     log('Error fetching clients served report:', error);
+    throw error;
+  }
+});
+
+// New report handler specifically for voided sales
+ipcMain.handle('get-voided-sales-report', async (event, { startDate, endDate }) => {
+  try {
+    const voidedSales = db.get('sales')
+      .filter(sale => {
+        // Get only voided sales
+        if (!sale.isVoided) return false;
+
+        const voidDate = sale.voidedAt ? new Date(sale.voidedAt) : new Date(sale.updatedAt);
+        return voidDate >= new Date(startDate) && voidDate <= new Date(endDate);
+      })
+      .value();
+
+    const formattedSales = voidedSales.map(sale => {
+      const client = db.get('clients').find({ id: sale.ClientId }).value();
+      const stylist = db.get('stylists').find({ id: sale.StylistId }).value();
+      const saleItems = db.get('saleItems').filter({ SaleId: sale.id }).value();
+
+      // Group items by type for easier reporting
+      const services = saleItems.filter(item => item.itemType === 'service');
+      const products = saleItems.filter(item => item.itemType === 'product');
+
+      // Calculate service and product totals
+      const serviceTotal = _.sumBy(services, item => item.price);
+      const productTotal = _.sumBy(products, item => item.price);
+
+      return {
+        id: sale.id,
+        saleDate: sale.saleDate,
+        voidedAt: sale.voidedAt || sale.updatedAt,
+        voidReason: sale.voidReason || 'No reason provided',
+        client: client ? `${client.firstName} ${client.lastName}` : 'N/A',
+        stylist: stylist ? `${stylist.firstName} ${stylist.lastName}` : 'N/A',
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        total: sale.total,
+        serviceTotal,
+        productTotal,
+        serviceCount: services.length,
+        productCount: products.length
+      };
+    });
+
+    return formattedSales;
+  } catch (error) {
+    log('Error generating voided sales report:', error);
     throw error;
   }
 });
