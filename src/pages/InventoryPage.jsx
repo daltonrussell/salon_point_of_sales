@@ -57,12 +57,15 @@ const InventoryPage = () => {
   }, []);
 
   // Calculate total after whenever received quantity changes
-  useEffect(() => {
+   useEffect(() => {
     if (receiveInventory.found) {
-      const received = parseInt(receiveInventory.receivedQuantity) || 0;
+      // Explicitly convert to numbers using parseInt/Number
+      const currentQty = Number(receiveInventory.currentQuantity) || 0;
+      const receivedQty = Number(receiveInventory.receivedQuantity) || 0;
+
       setReceiveInventory(prev => ({
         ...prev,
-        totalAfter: prev.currentQuantity + received
+        totalAfter: currentQty + receivedQty
       }));
     }
   }, [receiveInventory.receivedQuantity]);
@@ -109,11 +112,13 @@ const InventoryPage = () => {
         const item = results[0];
         setReceiveInventory(prev => ({
           ...prev,
-          currentQuantity: item.quantity,
+          // Explicitly convert to number
+          currentQuantity: Number(item.quantity),
           productName: item.productName,
           found: true,
           receivedQuantity: '',
-          totalAfter: item.quantity
+          // Explicitly use Number conversion
+          totalAfter: Number(item.quantity)
         }));
       } else {
         showSnackbar('SKU not found', 'error');
@@ -136,7 +141,8 @@ const InventoryPage = () => {
     try {
       await ipcRenderer.invoke('update-inventory-quantity', {
         sku: receiveInventory.searchSku,
-        quantity: parseInt(receiveInventory.receivedQuantity)
+        // Make sure to convert to number here too
+        quantity: Number(receiveInventory.receivedQuantity)
       });
       showSnackbar('Inventory updated successfully');
       setIsReceiveDialogOpen(false);
@@ -365,12 +371,6 @@ const InventoryPage = () => {
                 onChange={(e) => setReceiveInventory(prev => ({ ...prev, searchSku: e.target.value }))}
                 fullWidth
               />
-              <IconButton 
-                onClick={handleScanBarcode}
-                sx={{ alignSelf: 'center' }}
-              >
-                <ScannerIcon />
-              </IconButton>
               <Button 
                 variant="contained"
                 onClick={handleSearchSku}
