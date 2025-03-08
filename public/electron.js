@@ -858,36 +858,46 @@ ipcMain.handle("print-receipt", async (event, { saleData, businessInfo }) => {
       <html>
         <head>
           <style>
-            /* Reset default spacing */
-            * {
+            /* Reset ALL default spacing */
+            html, body, div, h1, h2, h3, p {
               margin: 0;
               padding: 0;
-              box-sizing: border-box;
+              border: 0;
+            }
+            
+            html, body {
+              height: 100%;
+              width: 100%;
+              overflow: visible;
             }
     
-            /* Base styles with MUCH larger font size */
+            /* Base styles with LARGER font size */
             body {
               font-family: monospace;
               width: 280px;
-              /* Dramatically increased font size */
-              font-size: 30pt;
+              font-size: 40pt; /* Increased from 30pt */
               line-height: 1.2;
-              /* Remove any default body margins */
               margin: 0;
               padding: 0;
-              /* Ensure content starts at the very top with no gap */
+              overflow: visible;
+            }
+            
+            /* Receipt container to control position */
+            #receipt {
               position: absolute;
               top: 0;
               left: 0;
+              width: 100%;
+              padding: 0;
+              margin: 0;
             }
     
             /* Header styling - larger and bolder */
             .header {
               text-align: center;
-              font-size: 36pt;
+              font-size: 45pt; /* Increased from 36pt */
               font-weight: bold;
-              /* Minimal top margin */
-              margin: 0;
+              margin-top: 0;
               padding-top: 0;
             }
     
@@ -899,106 +909,107 @@ ipcMain.handle("print-receipt", async (event, { saleData, businessInfo }) => {
               font-weight: bold; 
             }
             .large-text {
-              font-size: 34pt;
+              font-size: 42pt; /* Increased from 34pt */
             }
             .divider { 
-              border-top: 2px dashed black; 
-              margin: 8px 0;
+              border-top: 3px dashed black; /* Made thicker */
+              margin: 10px 0;
             }
     
             /* Item styling */
             .item {
-              margin: 8px 0;
-              font-size: 30pt;
+              margin: 10px 0;
+              font-size: 38pt; /* Increased from 30pt */
             }
     
             /* Totals section */
             .totals {
-              font-size: 32pt;
-              margin: 8px 0;
+              font-size: 40pt; /* Increased from 32pt */
+              margin: 10px 0;
             }
     
             /* Footer styling */
             .footer {
               text-align: center;
-              font-size: 30pt;
-              margin: 10px 0;
-              padding-bottom: 20px;
+              font-size: 38pt; /* Increased from 30pt */
+              margin: 15px 0;
+              padding-bottom: 30px;
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            ${businessInfo.name}
-            <br>${businessInfo.address.replace("\n", "<br>")}
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="item">
-            Date: ${new Date().toLocaleString()}<br>
-            Payment: ${saleData.paymentMethod}
-          </div>
-          
-          <div class="divider"></div>
-          
-          ${
-            saleData.services && saleData.services.length > 0
-              ? `
-            <div class="bold large-text">Services</div>
-            ${saleData.services
-              .map(
-                (service) => `
-              <div class="item">
-                <span class="bold">Service #${service.serviceId}</span>
-                <br>Price: $${service.price.toFixed(2)}
-              </div>
-            `,
-              )
-              .join('<div class="divider"></div>')}
+          <div id="receipt">
+            <div class="header">
+              ${businessInfo.name}
+              <br>${businessInfo.address.replace("\n", "<br>")}
+            </div>
+            
             <div class="divider"></div>
-          `
-              : ""
-          }
-          
-          ${
-            saleData.products && saleData.products.length > 0
-              ? `
-            <div class="bold large-text">Products</div>
-            ${saleData.products
-              .map(
-                (product) => `
-              <div class="item">
-                #${product.inventoryId} (x${product.quantity})
-                <br>Price: $${product.price.toFixed(2)}
-              </div>
-            `,
-              )
-              .join('<div class="divider"></div>')}
+            
+            <div class="item">
+              Date: ${new Date().toLocaleString()}<br>
+              Payment: ${saleData.paymentMethod}
+            </div>
+            
             <div class="divider"></div>
-          `
-              : ""
-          }
-          
-          <div class="totals bold">
-            Subtotal: $${saleData.subtotal.toFixed(2)}<br>
-            Tax: $${saleData.tax.toFixed(2)}<br>
-            <div class="large-text">Total: $${saleData.total.toFixed(2)}</div>
+            
+            ${
+              saleData.services && saleData.services.length > 0
+                ? `
+              <div class="bold large-text">Services</div>
+              ${saleData.services
+                .map(
+                  (service) => `
+                <div class="item">
+                  <span class="bold">Service #${service.serviceId}</span>
+                  <br>Price: $${service.price.toFixed(2)}
+                </div>
+              `,
+                )
+                .join('<div class="divider"></div>')}
+              <div class="divider"></div>
+            `
+                : ""
+            }
+            
+            ${
+              saleData.products && saleData.products.length > 0
+                ? `
+              <div class="bold large-text">Products</div>
+              ${saleData.products
+                .map(
+                  (product) => `
+                <div class="item">
+                  #${product.inventoryId} (x${product.quantity})
+                  <br>Price: $${product.price.toFixed(2)}
+                </div>
+              `,
+                )
+                .join('<div class="divider"></div>')}
+              <div class="divider"></div>
+            `
+                : ""
+            }
+            
+            <div class="totals bold">
+              Subtotal: $${saleData.subtotal.toFixed(2)}<br>
+              Tax: $${saleData.tax.toFixed(2)}<br>
+              <div class="large-text">Total: $${saleData.total.toFixed(2)}</div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="footer">
+              Thank you for your business!
+            </div>
           </div>
-          
-          <div class="divider"></div>
-          
-          <div class="footer">
-            Thank you for your business!
-          </div>
-
+    
           <script>
-            // Add script to calculate and report the content height when page loads
+            // Calculate the height including all content
             window.addEventListener('DOMContentLoaded', () => {
-              // Get the total height of the body content
-              const contentHeight = document.body.scrollHeight;
-              // Store this value for access by the main process
+              const contentHeight = document.getElementById('receipt').scrollHeight;
               window.contentHeight = contentHeight;
+              console.log('Content height: ' + contentHeight);
             });
           </script>
         </body>
@@ -1038,7 +1049,7 @@ ipcMain.handle("print-receipt", async (event, { saleData, businessInfo }) => {
           deviceName: receiptPrinter.name,
           color: false,
           margins: {
-            marginType: "custom",
+            marginType: "none",
             top: 0,
             bottom: 0,
             left: 0,
