@@ -1133,3 +1133,39 @@ ipcMain.handle("update-inventory", async (event, itemData) => {
     throw error;
   }
 });
+
+ipcMain.handle("delete-client", async (event, { id }) => {
+  try {
+    // First check if client exists
+    const client = db.get("clients").find({ id });
+    if (!client.value()) {
+      throw new Error("Client not found");
+    }
+
+    // Check for any sales associated with this client
+    const clientSales = db.get("sales").filter({ ClientId: id }).value();
+
+    if (clientSales.length > 0) {
+      // Return information about the situation instead of throwing an error
+      return {
+        success: false,
+        hasSales: true,
+        salesCount: clientSales.length,
+      };
+    }
+
+    // If no sales are found, remove the client
+    db.get("clients").remove({ id }).write();
+
+    return {
+      success: true,
+      message: "Client successfully deleted",
+    };
+  } catch (error) {
+    log("Error deleting client:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
