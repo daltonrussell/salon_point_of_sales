@@ -86,15 +86,27 @@ function createWindow() {
 }
 
 /*** APP LIFECYCLE ***/
-app.whenReady().then(() => {
-  log("App is ready, initializing...");
+try {
+  // Clear printer queue on startup (Windows example)
+  const { exec } = require("child_process");
+  const util = require("util");
+  const execPromise = util.promisify(exec);
+
   try {
-    createWindow();
-    log("Window created successfully");
+    const printerName = "BTP-M280(U) 1"; // Your receipt printer name
+    const command = `powershell -command "Get-PrintJob -PrinterName '${printerName}' | Remove-PrintJob"`;
+    await execPromise(command);
+    log("Cleared printer queue on startup");
   } catch (err) {
-    log("Error during initialization:", err);
+    log("Could not clear printer queue:", err);
   }
-});
+
+  // Continue with normal initialization
+  createWindow();
+  log("Window created successfully");
+} catch (err) {
+  log("Error during initialization:", err);
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
