@@ -50,6 +50,9 @@ function SalesForm() {
     amount: "",
   });
 
+  const [cashTender, setCashTender] = useState("");
+  const [changeDue, setChangeDue] = useState(0);
+
   const [taxRate, setTaxRate] = useState(() => {
     const savedRate = localStorage.getItem("taxRate");
     return savedRate ? parseFloat(savedRate) / 100 : 0.08;
@@ -81,6 +84,20 @@ function SalesForm() {
     loadProducts();
   }, []);
 
+  useEffect(() => {
+    if (paymentMethod === "Cash" && cashTender) {
+      const tenderAmount = parseFloat(cashTender);
+      const total = subtotal + productTax;
+      if (!isNaN(tenderAmount) && tenderAmount >= total) {
+        setChangeDue(tenderAmount - total);
+      } else {
+        setChangeDue(0);
+      }
+    } else {
+      setChangeDue(0);
+    }
+  }, [cashTender, subtotal, productTax, paymentMethod]);
+
   const loadProducts = async () => {
     try {
       const data = await ipcRenderer.invoke("get-all-inventory");
@@ -88,6 +105,22 @@ function SalesForm() {
     } catch (error) {
       console.error("Error loading products:", error);
     }
+  };
+
+  const handlePaymentMethodChange = (event) => {
+    const method = event.target.value;
+    setPaymentMethod(method);
+
+    // Reset cash tender amount if switching away from cash
+    if (method !== "Cash") {
+      setCashTender("");
+      setChangeDue(0);
+    }
+  };
+
+  const handleCashTenderChange = (event) => {
+    const value = event.target.value;
+    setCashTender(value);
   };
 
   useEffect(() => {
@@ -471,6 +504,9 @@ function SalesForm() {
     setSubtotal(0);
     setProductTax(0);
     setServiceTax(0);
+
+    setCashTender("");
+    setChangeDue(0);
   };
 
   const handlePrintReceipt = async () => {
@@ -507,6 +543,7 @@ function SalesForm() {
       setShowReceiptDialog(false);
     }
   };
+
   return (
     <Grid container spacing={3}>
       {/* Left Section */}
@@ -910,20 +947,68 @@ function SalesForm() {
           />
 
           {!splitPayment ? (
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Payment Method</InputLabel>
-              <Select
-                value={paymentMethod}
-                label="Payment Method"
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              >
-                {paymentMethods.map((method) => (
-                  <MenuItem key={method} value={method}>
-                    {method}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Payment Method</InputLabel>
+                <Select
+                  value={paymentMethod}
+                  label="Payment Method"
+                  onChange={handlePaymentMethodChange}
+                >
+                  {paymentMethods.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Cash tender and change due - only show for cash payments */}
+              {paymentMethod === "Cash" && (
+                <Box sx={{ mt: 2, mb: 2 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        label="Cash Tendered"
+                        type="number"
+                        fullWidth
+                        value={cashTender}
+                        onChange={handleCashTenderChange}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">$</InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          p: 2,
+                          bgcolor: "background.paper",
+                          borderRadius: 1,
+                          border: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography variant="subtitle1">Change Due:</Typography>
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight="bold"
+                          color={
+                            changeDue > 0 ? "success.main" : "text.primary"
+                          }
+                        >
+                          ${changeDue.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+            </>
           ) : (
             <Box
               sx={{
@@ -951,7 +1036,7 @@ function SalesForm() {
                   <Select
                     value={paymentMethod}
                     label="First Payment Method"
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={handlePaymentMethodChange}
                   >
                     {paymentMethods.map((method) => (
                       <MenuItem key={method} value={method}>
@@ -960,6 +1045,8 @@ function SalesForm() {
                     ))}
                   </Select>
                 </FormControl>
+
+                {/* Cash tender fields for split payment's first payment */}
               </Box>
 
               <Divider sx={{ my: 2 }} />
