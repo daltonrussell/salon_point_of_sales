@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@mui/material";
 import CustomerModal from "../customers/CustomerModal";
+import SaleDatePicker from "../Reusable/SaleDatePicker";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -37,6 +38,7 @@ function SalesForm() {
   const [services, setServices] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [saleDate, setSaleDate] = useState(new Date());
   const [serviceKey, setServiceKey] = useState(0);
   const [productKey, setProductKey] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -299,6 +301,7 @@ function SalesForm() {
           tax: productTax,
           total: subtotal + productTax,
           paymentMethod: paymentMethod || "back-bar",
+          saleDate: saleDate,
         };
 
         console.log("Sale Data being sent:", saleData);
@@ -440,6 +443,7 @@ function SalesForm() {
       tax: taxAmount,
       total: subtotalAmount + taxAmount,
       paymentMethod: paymentMethod,
+      saleDate: saleDate,
     };
   };
 
@@ -457,6 +461,7 @@ function SalesForm() {
     setDiscountPercent("0");
     setProductKey((prev) => prev + 1);
     setSplitPayment(false);
+    setSaleDate(new Date()); // Reset to current date
 
     setSecondaryPayment({
       method: "",
@@ -511,6 +516,41 @@ function SalesForm() {
             Sale Information
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Date and Stylist Row - Grid container to place them side by side */}
+            <Grid container spacing={2}>
+              {/* Sale Date Selection - Takes up half the width */}
+              <Grid item xs={12} sm={6}>
+                <SaleDatePicker
+                  initialDate={saleDate}
+                  onDateChange={(date) => setSaleDate(date)}
+                />
+              </Grid>
+
+              {/* Stylist Selection - Takes up half the width */}
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  options={stylists}
+                  getOptionLabel={(option) =>
+                    option ? `${option.firstName} ${option.lastName}` : ""
+                  }
+                  isOptionEqualToValue={(option, value) =>
+                    option?.id === value?.id
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Stylist"
+                      variant="outlined"
+                      fullWidth
+                      required
+                    />
+                  )}
+                  onChange={(event, newValue) => setSelectedStylist(newValue)}
+                  value={selectedStylist}
+                />
+              </Grid>
+            </Grid>
+
             {/* Customer Selection */}
             <Box sx={{ display: "flex", gap: 1 }}>
               <Autocomplete
@@ -559,26 +599,6 @@ function SalesForm() {
                 +
               </Button>
             </Box>
-
-            {/* Stylist Selection */}
-            <Autocomplete
-              options={stylists}
-              getOptionLabel={(option) =>
-                option ? `${option.firstName} ${option.lastName}` : ""
-              }
-              isOptionEqualToValue={(option, value) => option?.id === value?.id}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Stylist"
-                  variant="outlined"
-                  fullWidth
-                  required
-                />
-              )}
-              onChange={(event, newValue) => setSelectedStylist(newValue)}
-              value={selectedStylist}
-            />
           </Box>
         </Paper>
 

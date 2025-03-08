@@ -1,19 +1,23 @@
-import React from 'react';
-import { Button } from '@mui/material';
-import StylistSalesTable from './StylistSalesTable';
-import InventoryTaxTable from './InventoryTaxTable';
+import React from "react";
+import { Button } from "@mui/material";
+import StylistSalesTable from "./StylistSalesTable";
+import InventoryTaxTable from "./InventoryTaxTable";
 
 const PDFTableExport = ({ data, reportType, startDate, endDate }) => {
   const printToPDF = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
 
-    let tableContent = '';
+    let tableContent = "";
 
     // Use the appropriate table generator based on report type
-    if (reportType === 'stylist-sales') {
+    if (reportType === "stylist-sales") {
       tableContent = StylistSalesTable.generatePdfContent(data);
-    } else if (reportType === 'inventory-tax') {
-      tableContent = InventoryTaxTable.generatePdfContent(data, startDate, endDate);
+    } else if (reportType === "inventory-tax") {
+      tableContent = InventoryTaxTable.generatePdfContent(
+        data,
+        startDate,
+        endDate,
+      );
     }
 
     const htmlContent = `
@@ -71,18 +75,18 @@ const PDFTableExport = ({ data, reportType, startDate, endDate }) => {
   };
 
   return (
-    <div style={{ marginTop: '16px' }}>
+    <div style={{ marginTop: "16px" }}>
       <Button
         variant="contained"
         onClick={printToPDF}
         sx={{
-          backgroundColor: '#3b82f6',
-          '&:hover': {
-            backgroundColor: '#2563eb',
-          }
+          backgroundColor: "#3b82f6",
+          "&:hover": {
+            backgroundColor: "#2563eb",
+          },
         }}
       >
-        Download PDF
+        Print Report
       </Button>
     </div>
   );
