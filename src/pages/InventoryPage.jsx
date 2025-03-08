@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -16,54 +16,63 @@ import {
   Paper,
   IconButton,
   InputAdornment,
+  DialogContentText,
   Snackbar,
   Alert,
   Stack,
-  Tooltip
-} from '@mui/material';
+  Tooltip,
+} from "@mui/material";
 import {
   Add as AddIcon,
   Search as SearchIcon,
   QrCodeScanner as ScannerIcon,
   LocalShipping as ReceiveIcon,
-  Edit as EditIcon
-} from '@mui/icons-material';
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from "@mui/icons-material";
 
-const { ipcRenderer } = window.require('electron');
+const { ipcRenderer } = window.require("electron");
 
 const InventoryPage = () => {
   const [inventory, setInventory] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
   const [newItem, setNewItem] = useState({
-    productName: '',
-    manufacturer: '',
-    purchasePrice: '',
-    salePrice: '',
-    quantity: '',
-    sku: ''
+    productName: "",
+    manufacturer: "",
+    purchasePrice: "",
+    salePrice: "",
+    quantity: "",
+    sku: "",
   });
   const [editItem, setEditItem] = useState({
-    id: '',
-    productName: '',
-    manufacturer: '',
-    purchasePrice: '',
-    salePrice: '',
-    quantity: '',
-    sku: '',
-    createdAt: '',
-    updatedAt: ''
+    id: "",
+    productName: "",
+    manufacturer: "",
+    purchasePrice: "",
+    salePrice: "",
+    quantity: "",
+    sku: "",
+    createdAt: "",
+    updatedAt: "",
   });
   const [receiveInventory, setReceiveInventory] = useState({
-    searchSku: '',
+    searchSku: "",
     currentQuantity: 0,
-    receivedQuantity: '',
+    receivedQuantity: "",
     totalAfter: 0,
-    productName: '',
-    found: false
+    productName: "",
+    found: false,
   });
 
   useEffect(() => {
@@ -77,24 +86,24 @@ const InventoryPage = () => {
       const currentQty = Number(receiveInventory.currentQuantity) || 0;
       const receivedQty = Number(receiveInventory.receivedQuantity) || 0;
 
-      setReceiveInventory(prev => ({
+      setReceiveInventory((prev) => ({
         ...prev,
-        totalAfter: currentQty + receivedQty
+        totalAfter: currentQty + receivedQty,
       }));
     }
   }, [receiveInventory.receivedQuantity]);
 
   const loadInventory = async () => {
     try {
-      const items = await ipcRenderer.invoke('get-all-inventory');
+      const items = await ipcRenderer.invoke("get-all-inventory");
       setInventory(items);
     } catch (error) {
-      console.error('Error loading inventory:', error);
-      showSnackbar('Error loading inventory', 'error');
+      console.error("Error loading inventory:", error);
+      showSnackbar("Error loading inventory", "error");
     }
   };
 
-  const showSnackbar = (message, severity = 'success') => {
+  const showSnackbar = (message, severity = "success") => {
     setSnackbar({
       open: true,
       message,
@@ -108,120 +117,150 @@ const InventoryPage = () => {
 
     try {
       if (term) {
-        const results = await ipcRenderer.invoke('search-inventory', term);
+        const results = await ipcRenderer.invoke("search-inventory", term);
         setInventory(results);
       } else {
         loadInventory();
       }
     } catch (error) {
-      console.error('Error searching inventory:', error);
-      showSnackbar('Error searching inventory', 'error');
+      console.error("Error searching inventory:", error);
+      showSnackbar("Error searching inventory", "error");
+    }
+  };
+
+  const handleDeleteClick = (item) => {
+    setItemToDelete(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      const result = await ipcRenderer.invoke("hide-inventory", {
+        id: itemToDelete.id,
+      });
+
+      if (result.success) {
+        showSnackbar("Item removed from inventory", "success");
+        loadInventory(); // Refresh inventory list
+      } else {
+        showSnackbar(
+          `Error: ${result.error || "Failed to remove item"}`,
+          "error",
+        );
+      }
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("Error removing inventory item:", error);
+      showSnackbar("Error removing inventory item", "error");
     }
   };
 
   const handleSearchSku = async () => {
     try {
-      const results = await ipcRenderer.invoke('search-inventory-by-sku', receiveInventory.searchSku);
+      const results = await ipcRenderer.invoke(
+        "search-inventory-by-sku",
+        receiveInventory.searchSku,
+      );
       if (results && results.length > 0) {
         const item = results[0];
-        setReceiveInventory(prev => ({
+        setReceiveInventory((prev) => ({
           ...prev,
           // Explicitly convert to number
           currentQuantity: Number(item.quantity),
           productName: item.productName,
           found: true,
-          receivedQuantity: '',
+          receivedQuantity: "",
           // Explicitly use Number conversion
-          totalAfter: Number(item.quantity)
+          totalAfter: Number(item.quantity),
         }));
       } else {
-        showSnackbar('SKU not found', 'error');
-        setReceiveInventory(prev => ({
+        showSnackbar("SKU not found", "error");
+        setReceiveInventory((prev) => ({
           ...prev,
           currentQuantity: 0,
-          productName: '',
+          productName: "",
           found: false,
-          receivedQuantity: '',
-          totalAfter: 0
+          receivedQuantity: "",
+          totalAfter: 0,
         }));
       }
     } catch (error) {
-      console.error('Error searching SKU:', error);
-      showSnackbar('Error searching SKU', 'error');
+      console.error("Error searching SKU:", error);
+      showSnackbar("Error searching SKU", "error");
     }
   };
 
   const handleReceiveSubmit = async () => {
     try {
-      await ipcRenderer.invoke('update-inventory-quantity', {
+      await ipcRenderer.invoke("update-inventory-quantity", {
         sku: receiveInventory.searchSku,
         // Make sure to convert to number here too
-        quantity: Number(receiveInventory.receivedQuantity)
+        quantity: Number(receiveInventory.receivedQuantity),
       });
-      showSnackbar('Inventory updated successfully');
+      showSnackbar("Inventory updated successfully");
       setIsReceiveDialogOpen(false);
       loadInventory();
       setReceiveInventory({
-        searchSku: '',
+        searchSku: "",
         currentQuantity: 0,
-        receivedQuantity: '',
+        receivedQuantity: "",
         totalAfter: 0,
-        productName: '',
-        found: false
+        productName: "",
+        found: false,
       });
     } catch (error) {
-      console.error('Error updating inventory:', error);
-      showSnackbar('Error updating inventory', 'error');
+      console.error("Error updating inventory:", error);
+      showSnackbar("Error updating inventory", "error");
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewItem(prev => ({
+    setNewItem((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleEditInputChange = (e) => {
     const { name, value } = e.target;
-    setEditItem(prev => ({
+    setEditItem((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke('create-inventory', newItem);
+      await ipcRenderer.invoke("create-inventory", newItem);
       setNewItem({
-        productName: '',
-        manufacturer: '',
-        purchasePrice: '',
-        salePrice: '',
-        quantity: '',
-        sku: ''
+        productName: "",
+        manufacturer: "",
+        purchasePrice: "",
+        salePrice: "",
+        quantity: "",
+        sku: "",
       });
       setIsDialogOpen(false);
       loadInventory();
-      showSnackbar('Inventory item added successfully');
+      showSnackbar("Inventory item added successfully");
     } catch (error) {
-      console.error('Error adding inventory item:', error);
-      showSnackbar('Error adding inventory item', 'error');
+      console.error("Error adding inventory item:", error);
+      showSnackbar("Error adding inventory item", "error");
     }
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke('update-inventory', editItem);
+      await ipcRenderer.invoke("update-inventory", editItem);
       setIsEditDialogOpen(false);
       loadInventory();
-      showSnackbar('Inventory item updated successfully');
+      showSnackbar("Inventory item updated successfully");
     } catch (error) {
-      console.error('Error updating inventory item:', error);
-      showSnackbar('Error updating inventory item', 'error');
+      console.error("Error updating inventory item:", error);
+      showSnackbar("Error updating inventory item", "error");
     }
   };
 
@@ -235,23 +274,30 @@ const InventoryPage = () => {
       quantity: item.quantity,
       sku: item.sku,
       createdAt: item.createdAt,
-      updatedAt: item.updatedAt
+      updatedAt: item.updatedAt,
     });
     setIsEditDialogOpen(true);
   };
 
   const handleScanBarcode = () => {
     // TODO: Implement barcode scanning functionality
-    alert('Barcode scanning to be implemented');
+    alert("Barcode scanning to be implemented");
   };
 
   const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
         <TextField
           placeholder="Search inventory..."
           variant="outlined"
@@ -310,8 +356,12 @@ const InventoryPage = () => {
                 <TableRow key={item.id}>
                   <TableCell>{item.productName}</TableCell>
                   <TableCell>{item.manufacturer}</TableCell>
-                  <TableCell align="right">${parseFloat(item.purchasePrice).toFixed(2)}</TableCell>
-                  <TableCell align="right">${parseFloat(item.salePrice).toFixed(2)}</TableCell>
+                  <TableCell align="right">
+                    ${parseFloat(item.purchasePrice).toFixed(2)}
+                  </TableCell>
+                  <TableCell align="right">
+                    ${parseFloat(item.salePrice).toFixed(2)}
+                  </TableCell>
                   <TableCell align="right">{item.quantity}</TableCell>
                   <TableCell>{item.sku}</TableCell>
                   <TableCell align="center">
@@ -322,6 +372,15 @@ const InventoryPage = () => {
                         onClick={() => handleEditClick(item)}
                       >
                         <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Remove Item">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteClick(item)}
+                      >
+                        <DeleteIcon />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -342,7 +401,7 @@ const InventoryPage = () => {
         <form onSubmit={handleSubmit}>
           <DialogTitle>Add New Inventory Item</DialogTitle>
           <DialogContent>
-            <Box sx={{ display: 'grid', gap: 2, pt: 2 }}>
+            <Box sx={{ display: "grid", gap: 2, pt: 2 }}>
               <TextField
                 label="Product Name"
                 name="productName"
@@ -359,7 +418,9 @@ const InventoryPage = () => {
                 fullWidth
                 required
               />
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <Box
+                sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+              >
                 <TextField
                   label="Purchase Price"
                   name="purchasePrice"
@@ -391,7 +452,7 @@ const InventoryPage = () => {
                 fullWidth
                 required
               />
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: "flex", gap: 1 }}>
                 <TextField
                   label="SKU"
                   name="sku"
@@ -402,7 +463,7 @@ const InventoryPage = () => {
                 />
                 <IconButton
                   onClick={handleScanBarcode}
-                  sx={{ alignSelf: 'center' }}
+                  sx={{ alignSelf: "center" }}
                 >
                   <ScannerIcon />
                 </IconButton>
@@ -411,7 +472,9 @@ const InventoryPage = () => {
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
             <Button onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Add Item</Button>
+            <Button type="submit" variant="contained">
+              Add Item
+            </Button>
           </DialogActions>
         </form>
       </Dialog>
@@ -426,7 +489,7 @@ const InventoryPage = () => {
         <form onSubmit={handleEditSubmit}>
           <DialogTitle>Edit Inventory Item</DialogTitle>
           <DialogContent>
-            <Box sx={{ display: 'grid', gap: 2, pt: 2 }}>
+            <Box sx={{ display: "grid", gap: 2, pt: 2 }}>
               <TextField
                 label="Product Name"
                 name="productName"
@@ -443,7 +506,9 @@ const InventoryPage = () => {
                 fullWidth
                 required
               />
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <Box
+                sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+              >
                 <TextField
                   label="Purchase Price"
                   name="purchasePrice"
@@ -503,23 +568,28 @@ const InventoryPage = () => {
       >
         <DialogTitle>Receive Inventory</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'grid', gap: 2, pt: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: "grid", gap: 2, pt: 2 }}>
+            <Box sx={{ display: "flex", gap: 1 }}>
               <TextField
                 label="Search SKU"
                 value={receiveInventory.searchSku}
-                onChange={(e) => setReceiveInventory(prev => ({ ...prev, searchSku: e.target.value }))}
+                onChange={(e) =>
+                  setReceiveInventory((prev) => ({
+                    ...prev,
+                    searchSku: e.target.value,
+                  }))
+                }
                 fullWidth
               />
-              <Button 
+              <Button
                 variant="contained"
                 onClick={handleSearchSku}
-                sx={{ alignSelf: 'center' }}
+                sx={{ alignSelf: "center" }}
               >
                 Search
               </Button>
             </Box>
-            
+
             {receiveInventory.found && (
               <>
                 <TextField
@@ -529,7 +599,13 @@ const InventoryPage = () => {
                   disabled
                   fullWidth
                 />
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 2,
+                  }}
+                >
                   <TextField
                     label="Current Quantity"
                     value={receiveInventory.currentQuantity}
@@ -540,10 +616,12 @@ const InventoryPage = () => {
                     label="Received Quantity"
                     type="number"
                     value={receiveInventory.receivedQuantity}
-                    onChange={(e) => setReceiveInventory(prev => ({ 
-                      ...prev, 
-                      receivedQuantity: e.target.value
-                    }))}
+                    onChange={(e) =>
+                      setReceiveInventory((prev) => ({
+                        ...prev,
+                        receivedQuantity: e.target.value,
+                      }))
+                    }
                     inputProps={{ min: 1 }}
                     autoFocus
                   />
@@ -560,29 +638,50 @@ const InventoryPage = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setIsReceiveDialogOpen(false)}>Cancel</Button>
-          <Button 
+          <Button
             onClick={handleReceiveSubmit}
             variant="contained"
-            disabled={!receiveInventory.found || !receiveInventory.receivedQuantity}
+            disabled={
+              !receiveInventory.found || !receiveInventory.receivedQuantity
+            }
           >
             Update Inventory
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={6000} 
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
         onClose={handleCloseSnackbar}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Remove Inventory Item</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to remove {itemToDelete?.productName} from
+            inventory? This action can be reversed through the admin panel.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error">
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

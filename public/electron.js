@@ -86,27 +86,59 @@ function createWindow() {
 }
 
 /*** APP LIFECYCLE ***/
-try {
-  // Clear printer queue on startup (Windows example)
-  const { exec } = require("child_process");
-  const util = require("util");
-  const execPromise = util.promisify(exec);
-
+app.whenReady().then(async () => {
+  log("App is ready, initializing...");
   try {
-    const printerName = "BTP-M280(U) 1"; // Your receipt printer name
-    const command = `powershell -command "Get-PrintJob -PrinterName '${printerName}' | Remove-PrintJob"`;
-    await execPromise(command);
-    log("Cleared printer queue on startup");
-  } catch (err) {
-    log("Could not clear printer queue:", err);
-  }
+    // Clear printer queue on startup (Windows example)
+    const { exec } = require("child_process");
+    const util = require("util");
+    const execPromise = util.promisify(exec);
 
-  // Continue with normal initialization
-  createWindow();
-  log("Window created successfully");
-} catch (err) {
-  log("Error during initialization:", err);
-}
+    const clients = db.get("clients").value();
+    let updated = false;
+
+    clients.forEach((client) => {
+      if (client.showInUI === undefined) {
+        db.get("clients")
+          .find({ id: client.id })
+          .assign({ showInUI: true })
+          .write();
+        updated = true;
+      }
+    });
+
+    const inventoryItems = db.get("inventory").value();
+    inventoryItems.forEach((item) => {
+      if (item.showInUI === undefined) {
+        db.get("inventory")
+          .find({ id: item.id })
+          .assign({ showInUI: true })
+          .write();
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      log("Updated existing clients with showInUI field");
+      log("Updated existing inventory items with showInUI field");
+    }
+
+    try {
+      const printerName = "BTP-M280(U) 1"; // Your receipt printer name
+      const command = `powershell -command "Get-PrintJob -PrinterName '${printerName}' | Remove-PrintJob"`;
+      await execPromise(command);
+      log("Cleared printer queue on startup");
+    } catch (err) {
+      log("Could not clear printer queue:", err);
+    }
+
+    // Continue with normal initialization
+    createWindow();
+    log("Window created successfully");
+  } catch (err) {
+    log("Error during initialization:", err);
+  }
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -126,6 +158,7 @@ ipcMain.handle("create-client", async (event, clientData) => {
     const client = {
       id: generateId(),
       ...clientData,
+      showInUI: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -150,6 +183,7 @@ ipcMain.handle("get-all-clients", async () => {
   try {
     return db
       .get("clients")
+      .filter({ showInUI: true }) // Only return clients marked as visible
       .orderBy(["lastName", "firstName"], ["asc", "asc"])
       .value();
   } catch (error) {
@@ -165,13 +199,54 @@ ipcMain.handle("search-clients", async (event, searchTerm) => {
       .get("clients")
       .filter(
         (client) =>
-          client.firstName.toLowerCase().includes(searchTermLower) ||
-          client.lastName.toLowerCase().includes(searchTermLower) ||
-          (client.phone && client.phone.includes(searchTerm)),
+          client.showInUI === true && // Only include visible clients
+          (client.firstName.toLowerCase().includes(searchTermLower) ||
+            client.lastName.toLowerCase().includes(searchTermLower) ||
+            (client.phone && client.phone.includes(searchTerm))),
       )
       .value();
   } catch (error) {
     log("Error searching clients:", error);
+    throw error;
+  }
+});
+
+ipcMain.handle("restore-client", async (event, { id }) => {
+  try {
+    const client = db.get("clients").find({ id });
+    if (!client.value()) {
+      throw new Error("Client not found");
+    }
+
+    client
+      .assign({
+        showInUI: true,
+        updatedAt: new Date(),
+      })
+      .write();
+
+    return {
+      success: true,
+      message: "Client successfully restored",
+    };
+  } catch (error) {
+    log("Error restoring client:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
+
+ipcMain.handle("get-hidden-clients", async () => {
+  try {
+    return db
+      .get("clients")
+      .filter({ showInUI: false })
+      .orderBy(["lastName", "firstName"], ["asc", "asc"])
+      .value();
+  } catch (error) {
+    log("Error fetching hidden clients:", error);
     throw error;
   }
 });
@@ -692,7 +767,11 @@ ipcMain.handle(
 // Inventory Handlers
 ipcMain.handle("get-all-inventory", async () => {
   try {
-    return db.get("inventory").orderBy(["productName"], ["asc"]).value();
+    return db
+      .get("inventory")
+      .filter((item) => item.showInUI !== false) // Only show visible items
+      .orderBy(["productName"], ["asc"])
+      .value();
   } catch (error) {
     log("Error fetching all inventory:", error);
     throw error;
@@ -704,6 +783,7 @@ ipcMain.handle("create-inventory", async (event, inventoryData) => {
     const item = {
       id: generateId(),
       ...inventoryData,
+      showInUI: true, // Add this field
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -722,9 +802,10 @@ ipcMain.handle("search-inventory", async (event, searchTerm) => {
       .get("inventory")
       .filter(
         (item) =>
-          item.productName.toLowerCase().includes(searchTermLower) ||
-          item.manufacturer.toLowerCase().includes(searchTermLower) ||
-          item.sku.toLowerCase().includes(searchTermLower),
+          item.showInUI !== false && // Only include visible items
+          (item.productName.toLowerCase().includes(searchTermLower) ||
+            item.manufacturer.toLowerCase().includes(searchTermLower) ||
+            item.sku.toLowerCase().includes(searchTermLower)),
       )
       .value();
   } catch (error) {
@@ -737,7 +818,11 @@ ipcMain.handle("search-inventory-by-sku", async (event, sku) => {
   try {
     return db
       .get("inventory")
-      .filter((item) => item.sku.toLowerCase() === sku.toLowerCase())
+      .filter(
+        (item) =>
+          item.showInUI !== false && // Only include visible items
+          item.sku.toLowerCase() === sku.toLowerCase(),
+      )
       .value();
   } catch (error) {
     log("Error searching inventory by SKU:", error);
@@ -1157,27 +1242,102 @@ ipcMain.handle("delete-client", async (event, { id }) => {
     // Check for any sales associated with this client
     const clientSales = db.get("sales").filter({ ClientId: id }).value();
 
-    if (clientSales.length > 0) {
-      // Return information about the situation instead of throwing an error
-      return {
-        success: false,
-        hasSales: true,
-        salesCount: clientSales.length,
-      };
-    }
+    // if (clientSales.length > 0) {
+    //   // Return information about the situation instead of throwing an error
+    //   return {
+    //     success: false,
+    //     hasSales: true,
+    //     salesCount: clientSales.length,
+    //   };
+    // }
 
-    // If no sales are found, remove the client
-    db.get("clients").remove({ id }).write();
+    // Instead of removing the client, update the showInUI flag to false
+    client
+      .assign({
+        showInUI: false,
+        updatedAt: new Date(),
+      })
+      .write();
 
     return {
       success: true,
-      message: "Client successfully deleted",
+      message: "Client successfully hidden from UI",
     };
   } catch (error) {
-    log("Error deleting client:", error);
+    log("Error hiding client:", error);
     return {
       success: false,
       error: error.message,
     };
+  }
+});
+
+// Add a new handler to soft delete (hide) inventory
+ipcMain.handle("hide-inventory", async (event, { id }) => {
+  try {
+    // Check if item exists
+    const item = db.get("inventory").find({ id });
+    if (!item.value()) {
+      throw new Error("Inventory item not found");
+    }
+
+    // Instead of removing, update the showInUI flag to false
+    item
+      .assign({
+        showInUI: false,
+        updatedAt: new Date(),
+      })
+      .write();
+
+    return {
+      success: true,
+      message: "Item successfully hidden from inventory",
+    };
+  } catch (error) {
+    log("Error hiding inventory item:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
+
+ipcMain.handle("restore-inventory", async (event, { id }) => {
+  try {
+    const item = db.get("inventory").find({ id });
+    if (!item.value()) {
+      throw new Error("Inventory item not found");
+    }
+
+    item
+      .assign({
+        showInUI: true,
+        updatedAt: new Date(),
+      })
+      .write();
+
+    return {
+      success: true,
+      message: "Inventory item successfully restored",
+    };
+  } catch (error) {
+    log("Error restoring inventory item:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
+
+ipcMain.handle("get-hidden-inventory", async () => {
+  try {
+    return db
+      .get("inventory")
+      .filter({ showInUI: false })
+      .orderBy(["productName"], ["asc"])
+      .value();
+  } catch (error) {
+    log("Error fetching hidden inventory:", error);
+    throw error;
   }
 });
