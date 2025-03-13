@@ -141,13 +141,22 @@ function SalesForm() {
   // Add this to prevent form submission on Enter when using barcode scanner
   useEffect(() => {
     const preventSubmit = (e) => {
-      if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
-        e.preventDefault();
+      // Only prevent Enter in specific contexts
+      if (e.key === "Enter") {
+        // Allow Enter in these scenarios:
+        const allowEnter =
+          e.target.tagName === "BUTTON" || // Buttons should use Enter
+          e.target.closest(".MuiAutocomplete-root") || // Autocomplete needs Enter
+          e.target.closest('[role="listbox"]') || // Dropdown selections
+          e.target.closest('[role="combobox"]'); // Input with dropdown
+
+        if (!allowEnter) {
+          e.preventDefault();
+        }
       }
     };
 
     window.addEventListener("keydown", preventSubmit);
-
     return () => {
       window.removeEventListener("keydown", preventSubmit);
     };
