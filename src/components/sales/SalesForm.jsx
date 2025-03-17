@@ -53,6 +53,11 @@ function SalesForm() {
   const [cashTender, setCashTender] = useState("");
   const [changeDue, setChangeDue] = useState(0);
 
+  // Product Stylist ID from settings
+  const [productStylistId, setProductStylistId] = useState(() => {
+    return localStorage.getItem("productStylistId") || "";
+  });
+
   const [taxRate, setTaxRate] = useState(() => {
     const savedRate = localStorage.getItem("taxRate");
     return savedRate ? parseFloat(savedRate) / 100 : 0.08;
@@ -127,10 +132,12 @@ function SalesForm() {
     const handleStorageChange = (e) => {
       if (e.key === "taxRate") {
         setTaxRate(parseFloat(e.newValue) / 100);
+      } else if (e.key === "productStylistId") {
+        setProductStylistId(e.newValue || "");
       }
     };
 
-    // Listen for changes to localStorage (in case tax rate is updated in settings)
+    // Listen for changes to localStorage (in case settings are updated in another tab)
     window.addEventListener("storage", handleStorageChange);
 
     return () => {
@@ -310,61 +317,515 @@ function SalesForm() {
     setServiceTax(0); // Services are not taxed
   };
 
+  // Helper function to find a stylist by ID
+  const findStylistById = (id) => {
+    return stylists.find((stylist) => stylist.id === id) || null;
+  };
+
+  // Helper functions for sale operations
+  const createProductSaleData = (
+    productItems,
+    clientId,
+    stylistId,
+    paymentMethod,
+    saleDate,
+    taxRate,
+  ) => {
+    const productSubtotal = productItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+    const productTaxAmount = productSubtotal * taxRate;
+
+    return {
+      ClientId: clientId,
+      StylistId: stylistId,
+      services: [],
+      products: productItems.map((item) => ({
+        inventoryId: item.product.id,
+        price: item.price,
+        quantity: item.quantity,
+        isBackBar: !!item.isBackBar,
+      })),
+      subtotal: productSubtotal,
+      tax: productTaxAmount,
+      total: productSubtotal + productTaxAmount,
+      paymentMethod: paymentMethod,
+      saleDate: saleDate,
+    };
+  };
+
+  const createServiceSaleData = (
+    serviceItems,
+    clientId,
+    stylistId,
+    paymentMethod,
+    saleDate,
+  ) => {
+    const serviceSubtotal = serviceItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+
+    return {
+      ClientId: clientId,
+      StylistId: stylistId,
+      services: serviceItems.map((item) => ({
+        serviceId: item.service.id,
+        price: item.service.price,
+        quantity: 1,
+      })),
+      products: [],
+      subtotal: serviceSubtotal,
+      tax: 0, // Services aren't taxed
+      total: serviceSubtotal,
+      paymentMethod: paymentMethod,
+      saleDate: saleDate,
+    };
+  };
+
+  // Create a consolidated receipt data object that merges service and product data
+  const createCombinedReceiptData = (
+    serviceItems,
+    productItems,
+    clientId,
+    serviceStylishId,
+    productStylistId,
+    productStylistName,
+    subtotal,
+    tax,
+    paymentMethod,
+    secondaryPaymentMethod = null,
+    secondaryPaymentAmount = null,
+    saleDate,
+  ) => {
+    return {
+      ClientId: clientId,
+      StylistId: serviceStylishId,
+      ProductStylistId: productStylistId,
+      ProductStylistName: productStylistName,
+      services: serviceItems.map((item) => ({
+        serviceId: item.service.id,
+        price: item.service.price,
+        quantity: 1,
+        name: item.service.name,
+        stylistName: item.stylist
+          ? `${item.stylist.firstName} ${item.stylist.lastName}`
+          : "",
+      })),
+      products: productItems.map((item) => ({
+        inventoryId: item.product.id,
+        price: item.price,
+        quantity: item.quantity,
+        isBackBar: !!item.isBackBar,
+        name: item.product.productName,
+      })),
+      subtotal,
+      tax,
+      total: subtotal + tax,
+      paymentMethod,
+      secondaryPaymentMethod,
+      secondaryPaymentAmount,
+      saleDate,
+      splitPayment: !!secondaryPaymentMethod,
+      splitAttribution: true,
+    };
+  };
+
+  // Handle product-only sales
+  const handleProductOnlySale = async (
+    productItems,
+    clientId,
+    productStylistId,
+    paymentMethod,
+    saleDate,
+    taxRate,
+  ) => {
+    const saleData = createProductSaleData(
+      productItems,
+      clientId,
+      productStylistId,
+      paymentMethod,
+      saleDate,
+      taxRate,
+    );
+
+    await ipcRenderer.invoke("create-sale", saleData);
+    return saleData;
+  };
+
+  // Handle service-only sales
+  const handleServiceOnlySale = async (
+    serviceItems,
+    clientId,
+    stylistId,
+    paymentMethod,
+    saleDate,
+  ) => {
+    const saleData = createServiceSaleData(
+      serviceItems,
+      clientId,
+      stylistId,
+      paymentMethod,
+      saleDate,
+    );
+
+    await ipcRenderer.invoke("create-sale", saleData);
+    return saleData;
+  };
+
+  // Handle mixed product and service sales
+  const handleMixedSale = async (
+    serviceItems,
+    productItems,
+    clientId,
+    stylistId,
+    productStylistId,
+    paymentMethod,
+    saleDate,
+    taxRate,
+    findStylistById,
+  ) => {
+    // Create and submit service sale
+    if (serviceItems.length > 0) {
+      const serviceSaleData = createServiceSaleData(
+        serviceItems,
+        clientId,
+        stylistId,
+        paymentMethod,
+        saleDate,
+      );
+      await ipcRenderer.invoke("create-sale", serviceSaleData);
+    }
+
+    // Create and submit product sale
+    if (productItems.length > 0) {
+      const productSaleData = createProductSaleData(
+        productItems,
+        clientId,
+        productStylistId,
+        paymentMethod,
+        saleDate,
+        taxRate,
+      );
+      await ipcRenderer.invoke("create-sale", productSaleData);
+    }
+
+    // Create combined receipt data
+    const productStylist = findStylistById(productStylistId);
+    const serviceSubtotal = serviceItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+    const productSubtotal = productItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+    const productTaxAmount = productSubtotal * taxRate;
+
+    return createCombinedReceiptData(
+      serviceItems,
+      productItems,
+      clientId,
+      stylistId,
+      productStylistId,
+      productStylist
+        ? `${productStylist.firstName} ${productStylist.lastName}`
+        : "House",
+      serviceSubtotal + productSubtotal,
+      productTaxAmount,
+      paymentMethod,
+      null,
+      null,
+      saleDate,
+    );
+  };
+
+  // Handle split payment with separate product attribution
+  const handleSplitPaymentWithProductAttribution = async (
+    serviceItems,
+    productItems,
+    clientId,
+    stylistId,
+    productStylistId,
+    primaryPaymentMethod,
+    secondaryPaymentMethod,
+    secondaryPaymentAmount,
+    saleDate,
+    taxRate,
+    findStylistById,
+  ) => {
+    // Create service sale
+    if (serviceItems.length > 0) {
+      const serviceSaleData = createServiceSaleData(
+        serviceItems,
+        clientId,
+        stylistId,
+        primaryPaymentMethod,
+        saleDate,
+      );
+      await ipcRenderer.invoke("create-sale", serviceSaleData);
+    }
+
+    // Create product sale
+    if (productItems.length > 0) {
+      const productSaleData = createProductSaleData(
+        productItems,
+        clientId,
+        productStylistId,
+        secondaryPaymentMethod,
+        saleDate,
+        taxRate,
+      );
+      await ipcRenderer.invoke("create-sale", productSaleData);
+    }
+
+    // Create combined receipt data
+    const productStylist = findStylistById(productStylistId);
+    const serviceSubtotal = serviceItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+    const productSubtotal = productItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+    const productTaxAmount = productSubtotal * taxRate;
+
+    return createCombinedReceiptData(
+      serviceItems,
+      productItems,
+      clientId,
+      stylistId,
+      productStylistId,
+      productStylist
+        ? `${productStylist.firstName} ${productStylist.lastName}`
+        : "House",
+      serviceSubtotal + productSubtotal,
+      productTaxAmount,
+      primaryPaymentMethod,
+      secondaryPaymentMethod,
+      parseFloat(secondaryPaymentAmount),
+      saleDate,
+    );
+  };
+
+  // Handle traditional split payment without separate product attribution
+  const handleTraditionalSplitPayment = async (
+    cartItems,
+    clientId,
+    stylistId,
+    primaryPaymentMethod,
+    secondaryPaymentMethod,
+    primaryAmount,
+    secondaryAmount,
+    saleDate,
+    taxRate,
+  ) => {
+    // Calculate proportion for dividing items
+    const totalAmount = primaryAmount + secondaryAmount;
+    const primaryRatio = primaryAmount / totalAmount;
+
+    // Split services and products into two groups
+    const services = cartItems.filter((item) => item.type === "service");
+    const products = cartItems.filter((item) => item.type === "product");
+
+    let sale1Services = [];
+    let sale1Products = [];
+    let sale2Services = [];
+    let sale2Products = [];
+
+    let runningTotal = 0;
+
+    // Assign services
+    for (const item of services) {
+      if ((runningTotal + item.price) / totalAmount <= primaryRatio) {
+        sale1Services.push(item);
+        runningTotal += item.price;
+      } else {
+        sale2Services.push(item);
+      }
+    }
+
+    // Assign products
+    for (const item of products) {
+      if ((runningTotal + item.price) / totalAmount <= primaryRatio) {
+        sale1Products.push(item);
+        runningTotal += item.price;
+      } else {
+        sale2Products.push(item);
+      }
+    }
+
+    // Create first sale data
+    const sale1ServicesData = sale1Services.map((item) => ({
+      serviceId: item.service.id,
+      price: item.service.price,
+      quantity: 1,
+    }));
+
+    const sale1ProductsData = sale1Products.map((item) => ({
+      inventoryId: item.product.id,
+      price: item.price,
+      quantity: item.quantity,
+      isBackBar: !!item.isBackBar,
+    }));
+
+    const sale1Subtotal = [...sale1Services, ...sale1Products].reduce(
+      (sum, item) => sum + item.price,
+      0,
+    );
+    const sale1Tax = sale1Products.reduce(
+      (sum, item) => sum + item.price * taxRate,
+      0,
+    );
+
+    const saleData1 = {
+      ClientId: clientId,
+      StylistId: stylistId,
+      services: sale1ServicesData,
+      products: sale1ProductsData,
+      subtotal: sale1Subtotal,
+      tax: sale1Tax,
+      total: sale1Subtotal + sale1Tax,
+      paymentMethod: primaryPaymentMethod,
+      saleDate: saleDate,
+    };
+
+    // Create second sale data
+    const sale2ServicesData = sale2Services.map((item) => ({
+      serviceId: item.service.id,
+      price: item.service.price,
+      quantity: 1,
+    }));
+
+    const sale2ProductsData = sale2Products.map((item) => ({
+      inventoryId: item.product.id,
+      price: item.price,
+      quantity: item.quantity,
+      isBackBar: !!item.isBackBar,
+    }));
+
+    const sale2Subtotal = [...sale2Services, ...sale2Products].reduce(
+      (sum, item) => sum + item.price,
+      0,
+    );
+    const sale2Tax = sale2Products.reduce(
+      (sum, item) => sum + item.price * taxRate,
+      0,
+    );
+
+    const saleData2 = {
+      ClientId: clientId,
+      StylistId: stylistId,
+      services: sale2ServicesData,
+      products: sale2ProductsData,
+      subtotal: sale2Subtotal,
+      tax: sale2Tax,
+      total: sale2Subtotal + sale2Tax,
+      paymentMethod: secondaryPaymentMethod,
+      saleDate: saleDate,
+    };
+
+    // Submit both sales
+    await ipcRenderer.invoke("create-sale", saleData1);
+    await ipcRenderer.invoke("create-sale", saleData2);
+
+    // Return both sale data objects for receipt
+    return [saleData1, saleData2];
+  };
+
+  // The main handleCompleteSale function, now simplified with helper functions
   const handleCompleteSale = async () => {
     try {
-      // Check if this sale contains any back bar items
+      // Check what types of items we have in the cart
       const hasBackBarItems = cartItems.some((item) => item.isBackBar);
+      const productItems = cartItems.filter((item) => item.type === "product");
+      const serviceItems = cartItems.filter((item) => item.type === "service");
+      const hasProducts = productItems.some((item) => !item.isBackBar);
+      const hasServices = serviceItems.length > 0;
 
-      if (!splitPayment) {
-        // Regular single payment sale
-        const services = cartItems
-          .filter((item) => item.type === "service")
-          .map((item) => ({
+      // Determine if we should use product stylist
+      const shouldUseProductStylist = productStylistId && hasProducts;
+
+      // Get client and stylist IDs
+      const clientId = selectedCustomer ? selectedCustomer.id : null;
+      const stylistId = selectedStylist ? selectedStylist.id : null;
+
+      // Handle different sale types
+      let saleResults;
+
+      // 1. PRODUCT-ONLY SALE - Always use product stylist if defined
+      if (shouldUseProductStylist && !hasServices) {
+        saleResults = await handleProductOnlySale(
+          productItems,
+          clientId,
+          productStylistId,
+          paymentMethod || "back-bar",
+          saleDate,
+          taxRate,
+        );
+      }
+      // 2. MIXED SALE WITHOUT SPLIT PAYMENT - Split attribution between stylists
+      else if (shouldUseProductStylist && hasServices && !splitPayment) {
+        saleResults = await handleMixedSale(
+          serviceItems,
+          productItems,
+          clientId,
+          stylistId,
+          productStylistId,
+          paymentMethod,
+          saleDate,
+          taxRate,
+          findStylistById,
+        );
+      }
+      // 3. SERVICE-ONLY SALE or NO PRODUCT STYLIST - Regular single stylist sale
+      else if (!splitPayment) {
+        if (hasServices && !hasProducts) {
+          saleResults = await handleServiceOnlySale(
+            serviceItems,
+            clientId,
+            stylistId,
+            paymentMethod,
+            saleDate,
+          );
+        } else {
+          // Combined service and product sale (no product stylist defined)
+          const servicesData = serviceItems.map((item) => ({
             serviceId: item.service.id,
             price: item.service.price,
             quantity: 1,
           }));
 
-        const products = cartItems
-          .filter((item) => item.type === "product")
-          .map((item) => ({
+          const productsData = productItems.map((item) => ({
             inventoryId: item.product.id,
             price: item.price,
             quantity: item.quantity,
             isBackBar: !!item.isBackBar,
           }));
 
-        const saleData = {
-          ClientId: selectedCustomer ? selectedCustomer.id : null,
-          StylistId: selectedStylist ? selectedStylist.id : null,
-          services,
-          products,
-          subtotal,
-          tax: productTax,
-          total: subtotal + productTax,
-          paymentMethod: paymentMethod || "back-bar",
-          saleDate: saleDate,
-        };
+          const saleData = {
+            ClientId: clientId,
+            StylistId: stylistId,
+            services: servicesData,
+            products: productsData,
+            subtotal,
+            tax: productTax,
+            total: subtotal + productTax,
+            paymentMethod: paymentMethod || "back-bar",
+            saleDate: saleDate,
+          };
 
-        console.log("Sale Data being sent:", saleData);
-
-        await ipcRenderer.invoke("create-sale", saleData);
-
-        // Reset form
-        resetForm();
-
-        // For back bar items, no receipt is needed
-        if (hasBackBarItems) {
-          alert("Back bar items recorded successfully!");
-        } else {
-          // For regular sales, show the receipt dialog
-          setCompletedSaleData(saleData);
-          setShowReceiptDialog(true);
+          await ipcRenderer.invoke("create-sale", saleData);
+          saleResults = saleData;
         }
-      } else {
-        // Split payment sale - create two separate sales
+      }
+      // 4. SPLIT PAYMENT SCENARIOS
+      else if (splitPayment) {
         const secondaryAmount = parseFloat(secondaryPayment.amount);
 
+        // Validate split payment amount
         if (
           isNaN(secondaryAmount) ||
           secondaryAmount <= 0 ||
@@ -376,83 +837,112 @@ function SalesForm() {
 
         const primaryAmount = subtotal + productTax - secondaryAmount;
 
-        // Calculate proportion for dividing items
-        const primaryRatio = primaryAmount / (subtotal + productTax);
-
-        // Split services and products into two groups
-        const services = cartItems.filter((item) => item.type === "service");
-        const products = cartItems.filter((item) => item.type === "product");
-
-        let sale1Services = [];
-        let sale1Products = [];
-        let sale2Services = [];
-        let sale2Products = [];
-
-        let runningTotal = 0;
-
-        // Assign services
-        for (const item of services) {
-          if (
-            (runningTotal + item.price) / (subtotal + productTax) <=
-            primaryRatio
-          ) {
-            sale1Services.push(item);
-            runningTotal += item.price;
-          } else {
-            sale2Services.push(item);
-          }
+        // Split payment with product stylist
+        if (shouldUseProductStylist) {
+          saleResults = await handleSplitPaymentWithProductAttribution(
+            serviceItems,
+            productItems,
+            clientId,
+            stylistId,
+            productStylistId,
+            paymentMethod,
+            secondaryPayment.method,
+            secondaryPayment.amount,
+            saleDate,
+            taxRate,
+            findStylistById,
+          );
         }
-
-        // Assign products
-        for (const item of products) {
-          if (
-            (runningTotal + item.price) / (subtotal + productTax) <=
-            primaryRatio
-          ) {
-            sale1Products.push(item);
-            runningTotal += item.price;
-          } else {
-            sale2Products.push(item);
-          }
+        // Traditional split payment
+        else {
+          saleResults = await handleTraditionalSplitPayment(
+            cartItems,
+            clientId,
+            stylistId,
+            paymentMethod,
+            secondaryPayment.method,
+            primaryAmount,
+            secondaryAmount,
+            saleDate,
+            taxRate,
+          );
         }
+      }
 
-        // Create first sale
-        const saleData1 = createSaleDataObject(
-          sale1Services,
-          sale1Products,
-          primaryAmount,
-          paymentMethod,
-        );
+      // Save the completed sale data for receipt printing
+      setCompletedSaleData(saleResults);
 
-        // Create second sale
-        const saleData2 = createSaleDataObject(
-          sale2Services,
-          sale2Products,
-          secondaryAmount,
-          secondaryPayment.method,
-        );
+      // Reset form
+      resetForm();
 
-        // Submit both sales
-        await ipcRenderer.invoke("create-sale", saleData1);
-        await ipcRenderer.invoke("create-sale", saleData2);
-
-        // Reset form
-        resetForm();
-
-        // Back bar items don't need receipts
-        if (hasBackBarItems) {
-          alert("Back bar items recorded successfully!");
-        } else {
-          // Show receipt dialog for both sales
-          setCompletedSaleData([saleData1, saleData2]);
-          setShowReceiptDialog(true);
-        }
+      // For back bar items only, no receipt is needed
+      if (hasBackBarItems && cartItems.every((item) => item.isBackBar)) {
+        alert("Back bar items recorded successfully!");
+      } else {
+        // For regular sales, show the receipt dialog
+        setShowReceiptDialog(true);
       }
     } catch (error) {
       console.error("Error completing sale:", error);
       alert("Error completing sale");
     }
   };
+
+  // Updated print receipt function to handle a single receipt
+  const handlePrintReceipt = async () => {
+    try {
+      // Get a consolidated receipt data object regardless of structure
+      let consolidatedReceiptData;
+
+      if (Array.isArray(completedSaleData)) {
+        // For split payments, combine the data into a single receipt
+        consolidatedReceiptData = {
+          ClientId: completedSaleData[0].ClientId,
+          StylistId: completedSaleData[0].StylistId,
+          services: completedSaleData.flatMap((sale) => sale.services || []),
+          products: completedSaleData.flatMap((sale) => sale.products || []),
+          subtotal: completedSaleData.reduce(
+            (sum, sale) => sum + sale.subtotal,
+            0,
+          ),
+          tax: completedSaleData.reduce((sum, sale) => sum + sale.tax, 0),
+          total: completedSaleData.reduce((sum, sale) => sum + sale.total, 0),
+          paymentMethod: completedSaleData
+            .map((sale) => sale.paymentMethod)
+            .join(" / "),
+          saleDate: completedSaleData[0].saleDate,
+          // Include payment split information if needed
+          splitPayment: true,
+          paymentSplits: completedSaleData.map((sale) => ({
+            method: sale.paymentMethod,
+            amount: sale.total,
+          })),
+        };
+      } else {
+        // Already consolidated or single payment
+        consolidatedReceiptData = completedSaleData;
+      }
+
+      // Print a single receipt
+      await ipcRenderer.invoke("print-receipt", {
+        saleData: consolidatedReceiptData,
+        businessInfo: {
+          name: "A New You",
+          address: "107 S 2nd St\nIronton, OH 45432",
+        },
+      });
+
+      setShowReceiptDialog(false);
+      alert("Sale completed successfully!");
+    } catch (error) {
+      console.error("Receipt printer error:", error);
+      alert(
+        "Sale completed successfully, but receipt could not be printed. Please check printer connection.",
+      );
+      setShowReceiptDialog(false);
+    }
+  };
+
   const createSaleDataObject = (services, products, amount, paymentMethod) => {
     const servicesData = services.map((item) => ({
       serviceId: item.service.id,
@@ -497,11 +987,11 @@ function SalesForm() {
     setPaymentMethod("");
     setSelectedService(null);
     setCustomPrice("");
-    setServiceKey((prev) => prev + 1);
+    setServiceKey(Date.now()); // Use timestamp for more reliable reset
     setSelectedProduct(null);
     setProductQuantity(1);
     setDiscountPercent("0");
-    setProductKey((prev) => prev + 1);
+    setProductKey(Date.now()); // Use timestamp for more reliable reset
     setSplitPayment(false);
     setSaleDate(new Date()); // Reset to current date
 
@@ -516,41 +1006,6 @@ function SalesForm() {
 
     setCashTender("");
     setChangeDue(0);
-  };
-
-  const handlePrintReceipt = async () => {
-    try {
-      if (Array.isArray(completedSaleData)) {
-        // For split payments, print both receipts
-        for (const saleData of completedSaleData) {
-          await ipcRenderer.invoke("print-receipt", {
-            saleData,
-            businessInfo: {
-              name: "A New You",
-              address: "107 S 2nd St\nIronton, OH 45432",
-            },
-          });
-        }
-      } else {
-        // Single payment, print one receipt
-        await ipcRenderer.invoke("print-receipt", {
-          saleData: completedSaleData,
-          businessInfo: {
-            name: "A New You",
-            address: "107 S 2nd St\nIronton, OH 45432",
-          },
-        });
-      }
-
-      setShowReceiptDialog(false);
-      alert("Sale completed successfully!");
-    } catch (error) {
-      console.error("Receipt printer error:", error);
-      alert(
-        "Sale completed successfully, but receipt could not be printed. Please check printer connection.",
-      );
-      setShowReceiptDialog(false);
-    }
   };
 
   return (
