@@ -41,6 +41,9 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
   const [voidReason, setVoidReason] = useState("");
 
+  // Ensure isVoided is a boolean, handling both database and local state
+  const isVoided = Boolean(sale.isVoided);
+
   const handleVoidSale = () => {
     onVoid(sale.id, voidReason);
     setVoidDialogOpen(false);
@@ -55,7 +58,7 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
         p: 2,
         border: "1px solid rgba(0, 0, 0, 0.12)",
         borderRadius: 1,
-        backgroundColor: sale.isVoided ? "rgba(244, 67, 54, 0.08)" : "inherit",
+        backgroundColor: isVoided ? "rgba(244, 67, 54, 0.08)" : "inherit",
       }}
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -73,12 +76,12 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
           variant="body2"
           fontWeight="bold"
           sx={{
-            textDecoration: sale.isVoided ? "line-through" : "none",
-            color: sale.isVoided ? "text.disabled" : "text.primary",
+            textDecoration: isVoided ? "line-through" : "none",
+            color: isVoided ? "text.disabled" : "text.primary",
           }}
         >
           Total: ${sale.total.toFixed(2)}
-          {sale.isVoided && " (VOIDED)"}
+          {isVoided && " (VOIDED)"}
         </Typography>
       </Box>
       <Divider sx={{ my: 1 }} />
@@ -98,13 +101,13 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
               variant="outlined"
               size="small"
               sx={{
-                opacity: sale.isVoided ? 0.6 : 1,
-                textDecoration: sale.isVoided ? "line-through" : "none",
+                opacity: isVoided ? 0.6 : 1,
+                textDecoration: isVoided ? "line-through" : "none",
               }}
             />
           ))}
         </Box>
-        {!sale.isVoided && (
+        {!isVoided && (
           <Button
             size="small"
             color="error"
@@ -115,7 +118,7 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
             Void
           </Button>
         )}
-        {sale.isVoided && (
+        {isVoided && (
           <Chip
             label={sale.voidReason || "Voided"}
             color="error"
@@ -175,7 +178,13 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
           startDate: startDate.toISOString(),
           endDate,
         });
-        setSales(customerSales);
+
+        // Sort sales by date, newest first
+        const sortedSales = customerSales.sort((a, b) => {
+          return new Date(b.saleDate) - new Date(a.saleDate);
+        });
+
+        setSales(sortedSales);
       } catch (error) {
         console.error("Error fetching customer sales:", error);
         onExpandError("Failed to load customer sales history");

@@ -1151,6 +1151,8 @@ ipcMain.handle(
             ? `${stylist.firstName} ${stylist.lastName}`
             : "Unknown",
           items,
+          isVoided: sale.isVoided, // Add this line
+          voidReason: sale.voidReason, // Add this line
         };
       });
 

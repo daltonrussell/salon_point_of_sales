@@ -8,7 +8,8 @@
       "email": "sarah.johnson@example.com",
       "address": "123 Main St, Anytown, CA 94123",
       "createdAt": "2023-03-01T10:00:00.000Z",
-      "updatedAt": "2023-03-01T10:00:00.000Z"
+      "updatedAt": "2023-03-01T10:00:00.000Z",
+      "showInUI": true
     },
     {
       "id": "1677715200000",
@@ -18,7 +19,8 @@
       "email": "michael.chen@example.com",
       "address": "456 Oak Ave, Anytown, CA 94123",
       "createdAt": "2023-03-02T10:00:00.000Z",
-      "updatedAt": "2023-03-02T10:00:00.000Z"
+      "updatedAt": "2023-03-02T10:00:00.000Z",
+      "showInUI": true
     },
     {
       "id": "1677801600000",
@@ -28,7 +30,8 @@
       "email": "emily.davis@example.com",
       "address": "789 Pine St, Anytown, CA 94123",
       "createdAt": "2023-03-03T10:00:00.000Z",
-      "updatedAt": "2023-03-03T10:00:00.000Z"
+      "updatedAt": "2023-03-03T10:00:00.000Z",
+      "showInUI": true
     },
     {
       "id": "1677888000000",
@@ -38,7 +41,8 @@
       "email": "david.wilson@example.com",
       "address": null,
       "createdAt": "2023-03-04T10:00:00.000Z",
-      "updatedAt": "2023-03-04T10:00:00.000Z"
+      "updatedAt": "2025-03-08T21:15:46.465Z",
+      "showInUI": false
     },
     {
       "id": "1677974400000",
@@ -48,7 +52,8 @@
       "email": "jessica.brown@example.com",
       "address": "321 Elm St, Anytown, CA 94123",
       "createdAt": "2023-03-05T10:00:00.000Z",
-      "updatedAt": "2023-03-05T10:00:00.000Z"
+      "updatedAt": "2023-03-05T10:00:00.000Z",
+      "showInUI": true
     }
   ],
   "stylists": [
@@ -83,6 +88,14 @@
       "status": "on_leave",
       "createdAt": "2023-02-04T10:00:00.000Z",
       "updatedAt": "2023-02-04T10:00:00.000Z"
+    },
+    {
+      "id": "1742168485278",
+      "firstName": "House",
+      "lastName": "Sales",
+      "status": "active",
+      "createdAt": "2025-03-16T23:41:25.278Z",
+      "updatedAt": "2025-03-16T23:41:25.278Z"
     }
   ],
   "services": [
@@ -166,10 +179,11 @@
       "manufacturer": "LuxHair",
       "purchasePrice": 12.5,
       "salePrice": 24.99,
-      "quantity": 15,
+      "quantity": 9,
       "sku": "SH-MR-001",
       "createdAt": "2022-12-01T10:00:00.000Z",
-      "updatedAt": "2022-12-01T10:00:00.000Z"
+      "updatedAt": "2025-03-17T00:17:27.296Z",
+      "showInUI": true
     },
     {
       "id": "1669939200000",
@@ -180,7 +194,8 @@
       "quantity": 12,
       "sku": "CO-MR-001",
       "createdAt": "2022-12-02T10:00:00.000Z",
-      "updatedAt": "2022-12-02T10:00:00.000Z"
+      "updatedAt": "2025-03-08T21:24:48.033Z",
+      "showInUI": false
     },
     {
       "id": "1670025600000",
@@ -188,10 +203,11 @@
       "manufacturer": "StylePro",
       "purchasePrice": 9.75,
       "salePrice": 18.99,
-      "quantity": 8,
+      "quantity": 7,
       "sku": "SG-SH-001",
       "createdAt": "2022-12-03T10:00:00.000Z",
-      "updatedAt": "2022-12-03T10:00:00.000Z"
+      "updatedAt": "2025-03-08T17:05:15.823Z",
+      "showInUI": true
     },
     {
       "id": "1670112000000",
@@ -199,10 +215,11 @@
       "manufacturer": "ThermalGuard",
       "purchasePrice": 10.25,
       "salePrice": 19.99,
-      "quantity": 9,
+      "quantity": 8,
       "sku": "HP-SP-001",
       "createdAt": "2022-12-04T10:00:00.000Z",
-      "updatedAt": "2025-03-02T02:05:55.452Z"
+      "updatedAt": "2025-03-16T23:52:40.019Z",
+      "showInUI": true
     },
     {
       "id": "1670198400000",
@@ -210,10 +227,11 @@
       "manufacturer": "ColorStay",
       "purchasePrice": 13.75,
       "salePrice": 26.99,
-      "quantity": 4,
+      "quantity": 8,
       "sku": "SH-CP-001",
       "createdAt": "2022-12-05T10:00:00.000Z",
-      "updatedAt": "2025-03-02T01:55:26.979Z"
+      "updatedAt": "2025-03-16T23:40:48.875Z",
+      "showInUI": false
     },
     {
       "id": "1670284800000",
@@ -224,7 +242,8 @@
       "quantity": 5,
       "sku": "HM-DR-001",
       "createdAt": "2022-12-06T10:00:00.000Z",
-      "updatedAt": "2022-12-06T10:00:00.000Z"
+      "updatedAt": "2022-12-06T10:00:00.000Z",
+      "showInUI": true
     }
   ],
   "sales": [
@@ -298,10 +317,10 @@
       "paymentMethod": "Cash",
       "saleDate": "2025-03-01T03:33:11.355Z",
       "createdAt": "2025-03-01T03:33:11.355Z",
-      "updatedAt": "2025-03-02T01:01:42.232Z",
+      "updatedAt": "2025-03-16T23:40:48.873Z",
       "isVoided": true,
       "voidReason": null,
-      "voidedAt": "2025-03-02T01:01:42.232Z"
+      "voidedAt": "2025-03-16T23:40:48.873Z"
     },
     {
       "id": "1740800903562",
@@ -313,7 +332,10 @@
       "paymentMethod": "Cash",
       "saleDate": "2025-03-01T03:48:23.562Z",
       "createdAt": "2025-03-01T03:48:23.562Z",
-      "updatedAt": "2025-03-01T03:48:23.562Z"
+      "updatedAt": "2025-03-02T03:55:19.964Z",
+      "isVoided": true,
+      "voidReason": "asdf",
+      "voidedAt": "2025-03-02T03:55:19.964Z"
     },
     {
       "id": "1740880506800",
@@ -350,6 +372,240 @@
       "saleDate": "2025-03-02T02:05:55.452Z",
       "createdAt": "2025-03-02T02:05:55.452Z",
       "updatedAt": "2025-03-02T02:05:55.452Z"
+    },
+    {
+      "id": "1741453515823",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 193.99,
+      "tax": 1.5191999999999999,
+      "total": 195.50920000000002,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-08T17:05:15.823Z",
+      "createdAt": "2025-03-08T17:05:15.823Z",
+      "updatedAt": "2025-03-08T17:05:15.823Z"
+    },
+    {
+      "id": "1741453525665",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 85,
+      "tax": 0,
+      "total": 85,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-08T17:05:25.665Z",
+      "createdAt": "2025-03-08T17:05:25.665Z",
+      "updatedAt": "2025-03-08T17:05:25.665Z"
+    },
+    {
+      "id": "1741454391460",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 175,
+      "tax": 0,
+      "total": 175,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-08T17:19:51.460Z",
+      "createdAt": "2025-03-08T17:19:51.460Z",
+      "updatedAt": "2025-03-08T17:19:51.460Z"
+    },
+    {
+      "id": "1741454440475",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 260,
+      "tax": 0,
+      "total": 260,
+      "paymentMethod": "Debit Card",
+      "saleDate": "2025-03-08T17:20:40.475Z",
+      "createdAt": "2025-03-08T17:20:40.475Z",
+      "updatedAt": "2025-03-08T17:20:40.475Z"
+    },
+    {
+      "id": "1741455044990",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 175,
+      "tax": 0,
+      "total": 175,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-08T17:30:44.990Z",
+      "createdAt": "2025-03-08T17:30:44.990Z",
+      "updatedAt": "2025-03-08T17:30:44.990Z"
+    },
+    {
+      "id": "1741460178749",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 0,
+      "tax": 0,
+      "total": 0,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-08T18:56:18.749Z",
+      "createdAt": "2025-03-08T18:56:18.749Z",
+      "updatedAt": "2025-03-08T18:56:18.749Z"
+    },
+    {
+      "id": "1741460178751",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 175,
+      "tax": 0,
+      "total": 175,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-08T18:56:18.751Z",
+      "createdAt": "2025-03-08T18:56:18.751Z",
+      "updatedAt": "2025-03-08T18:56:18.751Z"
+    },
+    {
+      "id": "1741460563870",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 0,
+      "tax": 0,
+      "total": 0,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-08T19:02:43.870Z",
+      "createdAt": "2025-03-08T19:02:43.870Z",
+      "updatedAt": "2025-03-08T19:02:43.870Z"
+    },
+    {
+      "id": "1741460563873",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 175,
+      "tax": 0,
+      "total": 175,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-08T19:02:43.873Z",
+      "createdAt": "2025-03-08T19:02:43.873Z",
+      "updatedAt": "2025-03-08T19:02:43.873Z"
+    },
+    {
+      "id": "1741887189366",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 175,
+      "tax": 0,
+      "total": 175,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-13T17:31:35.675Z",
+      "createdAt": "2025-03-13T17:33:09.366Z",
+      "updatedAt": "2025-03-13T17:33:09.366Z"
+    },
+    {
+      "id": "1741887210122",
+      "ClientId": "1677715200000",
+      "StylistId": "1675382400000",
+      "subtotal": 109.99,
+      "tax": 1.9991999999999999,
+      "total": 111.9892,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-13T17:33:09.368Z",
+      "createdAt": "2025-03-13T17:33:30.122Z",
+      "updatedAt": "2025-03-13T17:33:30.122Z"
+    },
+    {
+      "id": "1741887236731",
+      "ClientId": "1677801600000",
+      "StylistId": "1675382400000",
+      "subtotal": 109.99,
+      "tax": 1.9991999999999999,
+      "total": 111.9892,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-13T17:33:30.125Z",
+      "createdAt": "2025-03-13T17:33:56.731Z",
+      "updatedAt": "2025-03-17T00:17:27.294Z",
+      "isVoided": true,
+      "voidReason": null,
+      "voidedAt": "2025-03-17T00:17:27.294Z"
+    },
+    {
+      "id": "1741887248699",
+      "ClientId": "1677715200000",
+      "StylistId": "1675296000000",
+      "subtotal": 54.989999999999995,
+      "tax": 1.9991999999999999,
+      "total": 56.9892,
+      "paymentMethod": "Debit Card",
+      "saleDate": "2025-03-13T17:33:56.733Z",
+      "createdAt": "2025-03-13T17:34:08.699Z",
+      "updatedAt": "2025-03-13T17:34:08.699Z"
+    },
+    {
+      "id": "1741887339010",
+      "ClientId": "1677715200000",
+      "StylistId": "1675382400000",
+      "subtotal": 132.98,
+      "tax": 3.8384,
+      "total": 136.8184,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-03-13T17:34:08.702Z",
+      "createdAt": "2025-03-13T17:35:39.010Z",
+      "updatedAt": "2025-03-13T17:35:39.010Z"
+    },
+    {
+      "id": "1741887350628",
+      "ClientId": "1677715200000",
+      "StylistId": "1675296000000",
+      "subtotal": 85,
+      "tax": 0,
+      "total": 85,
+      "paymentMethod": "Debit Card",
+      "saleDate": "2025-03-13T17:35:39.013Z",
+      "createdAt": "2025-03-13T17:35:50.628Z",
+      "updatedAt": "2025-03-17T00:14:47.205Z",
+      "isVoided": true,
+      "voidReason": null,
+      "voidedAt": "2025-03-17T00:14:47.205Z"
+    },
+    {
+      "id": "1742169160017",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 85,
+      "tax": 0,
+      "total": 85,
+      "paymentMethod": "Check",
+      "saleDate": "2025-03-16T23:47:27.618Z",
+      "createdAt": "2025-03-16T23:52:40.017Z",
+      "updatedAt": "2025-03-16T23:52:40.017Z"
+    },
+    {
+      "id": "1742169160019",
+      "ClientId": "1677974400000",
+      "StylistId": "1742168485278",
+      "subtotal": 19.99,
+      "tax": 1.4492749999999999,
+      "total": 21.439275,
+      "paymentMethod": "Check",
+      "saleDate": "2025-03-16T23:47:27.618Z",
+      "createdAt": "2025-03-16T23:52:40.019Z",
+      "updatedAt": "2025-03-16T23:52:40.019Z"
+    },
+    {
+      "id": "1742169224283",
+      "ClientId": "1677801600000",
+      "StylistId": "1675382400000",
+      "subtotal": 24.99,
+      "tax": 1.8117749999999997,
+      "total": 26.801775,
+      "paymentMethod": "Debit Card",
+      "saleDate": "2025-03-16T23:53:33.188Z",
+      "createdAt": "2025-03-16T23:53:44.283Z",
+      "updatedAt": "2025-03-16T23:53:44.283Z"
+    },
+    {
+      "id": "1742169846907",
+      "ClientId": "1677801600000",
+      "StylistId": "1742168485278",
+      "subtotal": 24.99,
+      "tax": 1.8117749999999997,
+      "total": 26.801775,
+      "paymentMethod": "Debit Card",
+      "saleDate": "2025-03-16T23:54:00.530Z",
+      "createdAt": "2025-03-17T00:04:06.907Z",
+      "updatedAt": "2025-03-17T00:04:06.907Z"
     }
   ],
   "saleItems": [
@@ -521,6 +777,246 @@
       "itemType": "product",
       "createdAt": "2025-03-02T02:05:55.452Z",
       "updatedAt": "2025-03-02T02:05:55.452Z"
+    },
+    {
+      "id": "1741453515823",
+      "SaleId": "1741453515823",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T17:05:15.823Z",
+      "updatedAt": "2025-03-08T17:05:15.823Z"
+    },
+    {
+      "id": "1741453515824",
+      "SaleId": "1741453515823",
+      "InventoryId": "1670025600000",
+      "price": 18.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-08T17:05:15.824Z",
+      "updatedAt": "2025-03-08T17:05:15.824Z"
+    },
+    {
+      "id": "1741453525665",
+      "SaleId": "1741453525665",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T17:05:25.665Z",
+      "updatedAt": "2025-03-08T17:05:25.665Z"
+    },
+    {
+      "id": "1741454391460",
+      "SaleId": "1741454391460",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T17:19:51.460Z",
+      "updatedAt": "2025-03-08T17:19:51.460Z"
+    },
+    {
+      "id": "1741454440475",
+      "SaleId": "1741454440475",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T17:20:40.475Z",
+      "updatedAt": "2025-03-08T17:20:40.475Z"
+    },
+    {
+      "id": "1741454440475",
+      "SaleId": "1741454440475",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T17:20:40.475Z",
+      "updatedAt": "2025-03-08T17:20:40.475Z"
+    },
+    {
+      "id": "1741455044990",
+      "SaleId": "1741455044990",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T17:30:44.990Z",
+      "updatedAt": "2025-03-08T17:30:44.990Z"
+    },
+    {
+      "id": "1741460178751",
+      "SaleId": "1741460178751",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T18:56:18.751Z",
+      "updatedAt": "2025-03-08T18:56:18.751Z"
+    },
+    {
+      "id": "1741460563873",
+      "SaleId": "1741460563873",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-08T19:02:43.873Z",
+      "updatedAt": "2025-03-08T19:02:43.873Z"
+    },
+    {
+      "id": "1741887189366",
+      "SaleId": "1741887189366",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-13T17:33:09.366Z",
+      "updatedAt": "2025-03-13T17:33:09.366Z"
+    },
+    {
+      "id": "1741887210122",
+      "SaleId": "1741887210122",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-13T17:33:30.122Z",
+      "updatedAt": "2025-03-13T17:33:30.122Z"
+    },
+    {
+      "id": "1741887210123",
+      "SaleId": "1741887210122",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-13T17:33:30.123Z",
+      "updatedAt": "2025-03-13T17:33:30.123Z"
+    },
+    {
+      "id": "1741887236731",
+      "SaleId": "1741887236731",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-13T17:33:56.731Z",
+      "updatedAt": "2025-03-13T17:33:56.731Z"
+    },
+    {
+      "id": "1741887236731",
+      "SaleId": "1741887236731",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-13T17:33:56.731Z",
+      "updatedAt": "2025-03-13T17:33:56.731Z"
+    },
+    {
+      "id": "1741887248699",
+      "SaleId": "1741887248699",
+      "ServiceId": "1673049600000",
+      "price": 30,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-13T17:34:08.699Z",
+      "updatedAt": "2025-03-13T17:34:08.699Z"
+    },
+    {
+      "id": "1741887248700",
+      "SaleId": "1741887248699",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-13T17:34:08.700Z",
+      "updatedAt": "2025-03-13T17:34:08.700Z"
+    },
+    {
+      "id": "1741887339010",
+      "SaleId": "1741887339010",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-13T17:35:39.010Z",
+      "updatedAt": "2025-03-13T17:35:39.010Z"
+    },
+    {
+      "id": "1741887339011",
+      "SaleId": "1741887339010",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-13T17:35:39.011Z",
+      "updatedAt": "2025-03-13T17:35:39.011Z"
+    },
+    {
+      "id": "1741887339012",
+      "SaleId": "1741887339010",
+      "InventoryId": "1669852800000",
+      "price": 22.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-13T17:35:39.012Z",
+      "updatedAt": "2025-03-13T17:35:39.012Z"
+    },
+    {
+      "id": "1741887350628",
+      "SaleId": "1741887350628",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-13T17:35:50.628Z",
+      "updatedAt": "2025-03-13T17:35:50.628Z"
+    },
+    {
+      "id": "1742169160017",
+      "SaleId": "1742169160017",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-16T23:52:40.017Z",
+      "updatedAt": "2025-03-16T23:52:40.017Z"
+    },
+    {
+      "id": "1742169160020",
+      "SaleId": "1742169160019",
+      "InventoryId": "1670112000000",
+      "price": 19.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-16T23:52:40.020Z",
+      "updatedAt": "2025-03-16T23:52:40.020Z"
+    },
+    {
+      "id": "1742169224285",
+      "SaleId": "1742169224283",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-16T23:53:44.285Z",
+      "updatedAt": "2025-03-16T23:53:44.285Z"
+    },
+    {
+      "id": "1742169846910",
+      "SaleId": "1742169846907",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-17T00:04:06.910Z",
+      "updatedAt": "2025-03-17T00:04:06.910Z"
     }
   ]
 }
