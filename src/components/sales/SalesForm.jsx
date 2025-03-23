@@ -72,6 +72,8 @@ function SalesForm() {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedStylist, setSelectedStylist] = useState(null);
 
+  const [attributedProducts, setAttributedProducts] = useState([]);
+
   // Add these to your existing state declarations
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -91,6 +93,7 @@ function SalesForm() {
     loadServices();
     loadAllClients();
     loadProducts();
+    loadAttributedProducts(); // New function to load attributed products
   }, []);
 
   useEffect(() => {
@@ -117,6 +120,13 @@ function SalesForm() {
       setProducts(data);
     } catch (error) {
       console.error("Error loading products:", error);
+    }
+  };
+
+  const loadAttributedProducts = () => {
+    const savedProducts = localStorage.getItem("attributedProducts");
+    if (savedProducts) {
+      setAttributedProducts(JSON.parse(savedProducts));
     }
   };
 
@@ -494,22 +504,41 @@ function SalesForm() {
     taxRate,
     findStylistById,
   ) => {
-    // Create and submit service sale
-    if (serviceItems.length > 0) {
-      const serviceSaleData = createServiceSaleData(
+    // Split products based on attribution
+    const stylistProducts = [];
+    const houseProducts = [];
+
+    productItems.forEach((item) => {
+      // Check if this product is in the attributed products list
+      const isAttributed = attributedProducts.some(
+        (p) => p.id === item.product.id,
+      );
+
+      if (isAttributed) {
+        stylistProducts.push(item); // Attributed to service stylist
+      } else {
+        houseProducts.push(item); // Goes to house/product stylist
+      }
+    });
+
+    // Create and submit service sale (including attributed products)
+    if (serviceItems.length > 0 || stylistProducts.length > 0) {
+      const serviceData = createServiceSaleWithProducts(
         serviceItems,
+        stylistProducts,
         clientId,
         stylistId,
         paymentMethod,
         saleDate,
+        taxRate,
       );
-      await ipcRenderer.invoke("create-sale", serviceSaleData);
+      await ipcRenderer.invoke("create-sale", serviceData);
     }
 
-    // Create and submit product sale
-    if (productItems.length > 0) {
+    // Create and submit product sale for house products
+    if (houseProducts.length > 0) {
       const productSaleData = createProductSaleData(
-        productItems,
+        houseProducts,
         clientId,
         productStylistId,
         paymentMethod,
@@ -525,28 +554,77 @@ function SalesForm() {
       (sum, item) => sum + parseFloat(item.price),
       0,
     );
-    const productSubtotal = productItems.reduce(
+    const attributedProductSubtotal = stylistProducts.reduce(
       (sum, item) => sum + parseFloat(item.price),
       0,
     );
-    const productTaxAmount = productSubtotal * taxRate;
+    const houseProductSubtotal = houseProducts.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+
+    const attributedProductTax = attributedProductSubtotal * taxRate;
+    const houseProductTax = houseProductSubtotal * taxRate;
 
     return createCombinedReceiptData(
       serviceItems,
-      productItems,
+      productItems, // All products for the receipt
       clientId,
       stylistId,
       productStylistId,
       productStylist
         ? `${productStylist.firstName} ${productStylist.lastName}`
         : "House",
-      serviceSubtotal + productSubtotal,
-      productTaxAmount,
+      serviceSubtotal + attributedProductSubtotal + houseProductSubtotal,
+      attributedProductTax + houseProductTax,
       paymentMethod,
       null,
       null,
       saleDate,
     );
+  };
+
+  const createServiceSaleWithProducts = (
+    serviceItems,
+    attributedProductItems,
+    clientId,
+    stylistId,
+    paymentMethod,
+    saleDate,
+    taxRate,
+  ) => {
+    const serviceSubtotal = serviceItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+
+    const productSubtotal = attributedProductItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+
+    const productTaxAmount = productSubtotal * taxRate;
+
+    return {
+      ClientId: clientId,
+      StylistId: stylistId,
+      services: serviceItems.map((item) => ({
+        serviceId: item.service.id,
+        price: item.service.price,
+        quantity: 1,
+      })),
+      products: attributedProductItems.map((item) => ({
+        inventoryId: item.product.id,
+        price: item.price,
+        quantity: item.quantity,
+        isBackBar: !!item.isBackBar,
+      })),
+      subtotal: serviceSubtotal + productSubtotal,
+      tax: productTaxAmount, // Only products are taxed
+      total: serviceSubtotal + productSubtotal + productTaxAmount,
+      paymentMethod: paymentMethod,
+      saleDate: saleDate,
+    };
   };
 
   // Handle split payment with separate product attribution

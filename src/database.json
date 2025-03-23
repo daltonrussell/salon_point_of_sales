@@ -179,10 +179,10 @@
       "manufacturer": "LuxHair",
       "purchasePrice": 12.5,
       "salePrice": 24.99,
-      "quantity": 9,
+      "quantity": 8,
       "sku": "SH-MR-001",
       "createdAt": "2022-12-01T10:00:00.000Z",
-      "updatedAt": "2025-03-17T00:17:27.296Z",
+      "updatedAt": "2025-03-23T02:19:24.243Z",
       "showInUI": true
     },
     {
@@ -239,10 +239,10 @@
       "manufacturer": "LuxHair",
       "purchasePrice": 15,
       "salePrice": 32.99,
-      "quantity": 5,
+      "quantity": 4,
       "sku": "HM-DR-001",
       "createdAt": "2022-12-06T10:00:00.000Z",
-      "updatedAt": "2022-12-06T10:00:00.000Z",
+      "updatedAt": "2025-03-23T02:13:31.761Z",
       "showInUI": true
     }
   ],
@@ -606,6 +606,42 @@
       "saleDate": "2025-03-16T23:54:00.530Z",
       "createdAt": "2025-03-17T00:04:06.907Z",
       "updatedAt": "2025-03-17T00:04:06.907Z"
+    },
+    {
+      "id": "1742696011761",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 207.99,
+      "tax": 2.391775,
+      "total": 210.381775,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-10T16:00:00.000Z",
+      "createdAt": "2025-03-23T02:13:31.761Z",
+      "updatedAt": "2025-03-23T02:13:31.761Z"
+    },
+    {
+      "id": "1742696364241",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 85,
+      "tax": 0,
+      "total": 85,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-10T16:00:00.000Z",
+      "createdAt": "2025-03-23T02:19:24.241Z",
+      "updatedAt": "2025-03-23T02:19:24.241Z"
+    },
+    {
+      "id": "1742696364243",
+      "ClientId": "1677974400000",
+      "StylistId": "1742168485278",
+      "subtotal": 24.99,
+      "tax": 1.8117749999999997,
+      "total": 26.801775,
+      "paymentMethod": "Cash",
+      "saleDate": "2025-03-10T16:00:00.000Z",
+      "createdAt": "2025-03-23T02:19:24.243Z",
+      "updatedAt": "2025-03-23T02:19:24.243Z"
     }
   ],
   "saleItems": [
@@ -1017,6 +1053,46 @@
       "itemType": "product",
       "createdAt": "2025-03-17T00:04:06.910Z",
       "updatedAt": "2025-03-17T00:04:06.910Z"
+    },
+    {
+      "id": "1742696011761",
+      "SaleId": "1742696011761",
+      "ServiceId": "1672963200000",
+      "price": 175,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-23T02:13:31.761Z",
+      "updatedAt": "2025-03-23T02:13:31.761Z"
+    },
+    {
+      "id": "1742696011762",
+      "SaleId": "1742696011761",
+      "InventoryId": "1670284800000",
+      "price": 32.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-23T02:13:31.763Z",
+      "updatedAt": "2025-03-23T02:13:31.763Z"
+    },
+    {
+      "id": "1742696364241",
+      "SaleId": "1742696364241",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-03-23T02:19:24.241Z",
+      "updatedAt": "2025-03-23T02:19:24.241Z"
+    },
+    {
+      "id": "1742696364244",
+      "SaleId": "1742696364243",
+      "InventoryId": "1669852800000",
+      "price": 24.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-03-23T02:19:24.244Z",
+      "updatedAt": "2025-03-23T02:19:24.244Z"
     }
   ]
 }
