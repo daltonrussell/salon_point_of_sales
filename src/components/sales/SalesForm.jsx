@@ -27,6 +27,7 @@ import {
 } from "@mui/material";
 import CustomerModal from "../customers/CustomerModal";
 import SaleDatePicker from "../Reusable/SaleDatePicker";
+import ReceiptGenerator from "../../utils/ReceiptGenerator";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -956,8 +957,20 @@ function SalesForm() {
       }
 
       // Save the completed sale data for receipt printing
-      setCompletedSaleData(saleResults);
+      if (saleResults && selectedCustomer) {
+        // Add customer name to sale results
+        if (Array.isArray(saleResults)) {
+          // For split payments
+          saleResults.forEach((sale) => {
+            sale.clientName = `${selectedCustomer.firstName} ${selectedCustomer.lastName}`;
+          });
+        } else {
+          // For single payment
+          saleResults.clientName = `${selectedCustomer.firstName} ${selectedCustomer.lastName}`;
+        }
+      }
 
+      setCompletedSaleData(saleResults);
       // Reset form
       resetForm();
 
@@ -975,16 +988,14 @@ function SalesForm() {
   };
 
   // Updated print receipt function to handle a single receipt
-  const handlePrintReceipt = async () => {
+  const handlePrintReceipt = () => {
     try {
-      // Get a consolidated receipt data object regardless of structure
+      // Consolidate data if it's a split payment
       let consolidatedReceiptData;
-
       if (Array.isArray(completedSaleData)) {
-        // For split payments, combine the data into a single receipt
         consolidatedReceiptData = {
+          // Combined data from both sale records
           ClientId: completedSaleData[0].ClientId,
-          StylistId: completedSaleData[0].StylistId,
           services: completedSaleData.flatMap((sale) => sale.services || []),
           products: completedSaleData.flatMap((sale) => sale.products || []),
           subtotal: completedSaleData.reduce(
@@ -993,11 +1004,9 @@ function SalesForm() {
           ),
           tax: completedSaleData.reduce((sum, sale) => sum + sale.tax, 0),
           total: completedSaleData.reduce((sum, sale) => sum + sale.total, 0),
-          paymentMethod: completedSaleData
-            .map((sale) => sale.paymentMethod)
-            .join(" / "),
+          paymentMethod: completedSaleData[0].paymentMethod,
+          secondaryPaymentMethod: completedSaleData[1].paymentMethod,
           saleDate: completedSaleData[0].saleDate,
-          // Include payment split information if needed
           splitPayment: true,
           paymentSplits: completedSaleData.map((sale) => ({
             method: sale.paymentMethod,
@@ -1005,25 +1014,77 @@ function SalesForm() {
           })),
         };
       } else {
-        // Already consolidated or single payment
+        // Single payment - use as is
         consolidatedReceiptData = completedSaleData;
       }
 
-      // Print a single receipt
-      await ipcRenderer.invoke("print-receipt", {
-        saleData: consolidatedReceiptData,
-        businessInfo: {
-          name: "A New You",
-          address: "107 S 2nd St\nIronton, OH 45432",
-        },
-      });
+      // Add client name if we have a ClientId
+      if (consolidatedReceiptData.ClientId) {
+        // Find the customer in our customers array
+        const client = customers.find(
+          (c) => c.id === consolidatedReceiptData.ClientId,
+        );
+        if (client) {
+          consolidatedReceiptData.clientName = `${client.firstName} ${client.lastName}`;
+        }
+      }
+
+      // Business info
+      const businessInfo = {
+        name: "A New You",
+        address: "107 S 2nd St\nIronton, OH 45432",
+      };
+
+      // Open a new window for the receipt
+      const printWindow = window.open("", "_blank");
+
+      // Generate receipt content and full HTML document
+      const receiptContent = ReceiptGenerator.generatePdfContent(
+        consolidatedReceiptData,
+        businessInfo,
+      );
+
+      // Create complete HTML document with receipt-optimized styling
+      const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - A New You</title>
+          <style>
+            /* Receipt styling for thermal printer compatibility */
+            body { 
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              padding: 20px;
+              max-width: 80mm;
+              margin: 0 auto;
+            }
+            /* Additional styling details... */
+          </style>
+        </head>
+        <body>
+          ${receiptContent}
+          <div class="no-print" style="margin-top: 20px; text-align: center;">
+            <button onclick="window.print()">Print Receipt</button>
+          </div>
+          <script>
+            // Auto-print after a brief delay
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
 
       setShowReceiptDialog(false);
-      alert("Sale completed successfully!");
     } catch (error) {
-      console.error("Receipt printer error:", error);
+      console.error("Receipt printing error:", error);
       alert(
-        "Sale completed successfully, but receipt could not be printed. Please check printer connection.",
+        "Sale completed successfully, but there was an error displaying the receipt.",
       );
       setShowReceiptDialog(false);
     }
