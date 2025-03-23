@@ -38,7 +38,11 @@ function SalesForm() {
   const [services, setServices] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [saleDate, setSaleDate] = useState(new Date());
+  const [saleDate, setSaleDate] = useState(() => {
+    // Try to read saleDate from localStorage
+    const savedDate = localStorage.getItem("saleDate");
+    return savedDate ? new Date(savedDate) : new Date();
+  });
   const [serviceKey, setServiceKey] = useState(0);
   const [productKey, setProductKey] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,6 +106,10 @@ function SalesForm() {
       setChangeDue(0);
     }
   }, [cashTender, subtotal, productTax, paymentMethod]);
+
+  useEffect(() => {
+    localStorage.setItem("saleDate", saleDate.toISOString());
+  }, [saleDate]);
 
   const loadProducts = async () => {
     try {
@@ -993,7 +1001,8 @@ function SalesForm() {
     setDiscountPercent("0");
     setProductKey(Date.now()); // Use timestamp for more reliable reset
     setSplitPayment(false);
-    setSaleDate(new Date()); // Reset to current date
+    //TODO: Not currently resetting the date to the current date. Replace this when historical data has been entered
+    // setSaleDate(new Date()); // Reset to current date
 
     setSecondaryPayment({
       method: "",
