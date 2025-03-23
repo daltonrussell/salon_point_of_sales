@@ -1,13 +1,13 @@
-const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const path = require('path');
-const { app } = require('electron');
-const isDev = require('electron-is-dev');
+const low = require("lowdb");
+const FileSync = require("lowdb/adapters/FileSync");
+const path = require("path");
+const { app } = require("electron");
+const isDev = require("electron-is-dev");
 
 // Set up the database path
-const DB_PATH = isDev 
-  ? path.join(__dirname, '..', 'src', 'database.json')
-  : path.join(app.getPath('userData'), 'database.json');
+const DB_PATH = isDev
+  ? path.join(__dirname, "..", "src", "database.json")
+  : path.join(app.getPath("userData"), "database.json");
 
 const adapter = new FileSync(DB_PATH);
 const db = low(adapter);
@@ -19,7 +19,7 @@ db.defaults({
   services: [], // stores Service records
   sales: [], // stores Sale records
   saleItems: [], // stores SaleItem records
-  inventory: [] // stores Inventory records
+  inventory: [], // stores Inventory records
 }).write();
 
 // Helper to generate IDs
@@ -36,20 +36,20 @@ const Client = {
       email: data.email || null,
       address: data.address || null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    db.get('clients').push(client).write();
+    db.get("clients").push(client).write();
     return client;
   },
   findAll: (options = {}) => {
-    let query = db.get('clients');
+    let query = db.get("clients");
     if (options.order) {
       const [field, direction] = options.order[0];
       query = query.orderBy(field, direction.toLowerCase());
     }
     return query.value();
   },
-  findByPk: (id) => db.get('clients').find({ id }).value()
+  findByPk: (id) => db.get("clients").find({ id }).value(),
 };
 
 // Stylist model operations
@@ -59,20 +59,20 @@ const Stylist = {
       id: generateId(),
       firstName: data.firstName,
       lastName: data.lastName,
-      status: data.status || 'active',
+      status: data.status || "active",
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    db.get('stylists').push(stylist).write();
+    db.get("stylists").push(stylist).write();
     return stylist;
   },
   findAll: (options = {}) => {
-    let query = db.get('stylists');
+    let query = db.get("stylists");
     if (options.where && options.where.status) {
       query = query.filter({ status: options.where.status });
     }
     return query.value();
-  }
+  },
 };
 
 // Service model operations
@@ -83,13 +83,14 @@ const Service = {
       name: data.name,
       price: data.price,
       description: data.description || null,
-      status: data.status || 'active',
+      status: data.status || "active",
+      luxury: data.luxury || false, // Add this line
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    db.get('services').push(service).write();
+    db.get("services").push(service).write();
     return service;
-  }
+  },
 };
 
 // Sale model operations
@@ -105,13 +106,13 @@ const Sale = {
       total: data.total,
       paymentMethod: data.paymentMethod,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    db.get('sales').push(sale).write();
+    db.get("sales").push(sale).write();
 
     // Handle sale items
     if (data.items) {
-      data.items.forEach(item => {
+      data.items.forEach((item) => {
         const saleItem = {
           id: generateId(),
           SaleId: sale.id,
@@ -121,14 +122,14 @@ const Sale = {
           ServiceId: item.ServiceId || null,
           InventoryId: item.InventoryId || null,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
-        db.get('saleItems').push(saleItem).write();
+        db.get("saleItems").push(saleItem).write();
       });
     }
 
     return sale;
-  }
+  },
 };
 
 // Inventory model operations
@@ -143,11 +144,11 @@ const Inventory = {
       quantity: data.quantity || 0,
       sku: data.sku,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    db.get('inventory').push(item).write();
+    db.get("inventory").push(item).write();
     return item;
-  }
+  },
 };
 
 module.exports = {
@@ -156,5 +157,5 @@ module.exports = {
   Service,
   Sale,
   Inventory,
-  setupDatabase: async () => true // No setup needed for LowDB
+  setupDatabase: async () => true, // No setup needed for LowDB
 };

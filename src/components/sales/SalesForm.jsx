@@ -37,6 +37,9 @@ function SalesForm() {
   // Data states
   const [stylists, setStylists] = useState([]);
   const [services, setServices] = useState([]);
+  const [luxuryServices, setLuxuryServices] = useState([]);
+  const [luxuryServiceKey, setLuxuryServiceKey] = useState(0);
+
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [saleDate, setSaleDate] = useState(() => {
@@ -71,6 +74,8 @@ function SalesForm() {
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
+  const [selectedLuxuryService, setSelectedLuxuryService] = useState(null);
+
   const [selectedStylist, setSelectedStylist] = useState(null);
 
   // Add these to your existing state declarations
@@ -199,7 +204,9 @@ function SalesForm() {
     try {
       // Get only active services for the sales form
       const data = await ipcRenderer.invoke("get-services", "active");
-      setServices(data);
+      // Split services into regular and luxury
+      setServices(data.filter((service) => !service.luxury));
+      setLuxuryServices(data.filter((service) => service.luxury));
     } catch (error) {
       console.error("Error loading services:", error);
     }
@@ -256,47 +263,35 @@ function SalesForm() {
 
   // Cart management
   const addToCart = (type) => {
-    if (type === "service" && selectedService && selectedStylist) {
-      const servicePrice = parseFloat(customPrice) || selectedService.price;
-      const newItem = {
-        id: Date.now(),
-        type: "service",
-        service: {
-          ...selectedService,
-          price: servicePrice,
-        },
-        stylist: selectedStylist,
-        price: servicePrice,
-        quantity: 1,
-      };
-      const updatedCart = [...cartItems, newItem];
-      setCartItems(updatedCart);
-      updateTotals(updatedCart);
-      setSelectedService(null);
-      setCustomPrice("");
-      setServiceKey((prev) => prev + 1); // Add this line
-    } else if (type === "product" && selectedProduct) {
-      // Calculate discounted price
-      const discountMultiplier = 1 - parseFloat(discountPercent) / 100;
-      const originalPrice = selectedProduct.salePrice * productQuantity;
-      const discountedPrice = originalPrice * discountMultiplier;
+    if (type === "service") {
+      const isLuxury = !!selectedLuxuryService;
+      const service = isLuxury ? selectedLuxuryService : selectedService;
 
-      const newItem = {
-        id: Date.now(),
-        type: "product",
-        product: selectedProduct,
-        quantity: productQuantity,
-        originalPrice: originalPrice,
-        discountPercent: parseFloat(discountPercent),
-        price: parseFloat(discountedPrice.toFixed(2)),
-      };
-      const updatedCart = [...cartItems, newItem];
-      setCartItems(updatedCart);
-      updateTotals(updatedCart);
-      setSelectedProduct(null);
-      setProductQuantity(1);
-      setDiscountPercent("0");
-      setProductKey((prev) => prev + 1); // Add this line
+      if (service && selectedStylist) {
+        const servicePrice = parseFloat(customPrice) || service.price;
+        const newItem = {
+          id: Date.now(),
+          type: "service",
+          service: {
+            ...service,
+            price: servicePrice,
+          },
+          stylist: selectedStylist,
+          price: servicePrice,
+          quantity: 1,
+          isLuxury: isLuxury, // Flag to mark if it's a luxury service
+        };
+        const updatedCart = [...cartItems, newItem];
+        setCartItems(updatedCart);
+        updateTotals(updatedCart);
+        setSelectedService(null);
+        setSelectedLuxuryService(null);
+        setCustomPrice("");
+        setServiceKey((prev) => prev + 1);
+        setLuxuryServiceKey((prev) => prev + 1);
+      }
+    } else if (type === "product") {
+      // Product handling unchanged...
     }
   };
 
@@ -309,21 +304,30 @@ function SalesForm() {
   // Payment calculations
   const updateTotals = (items) => {
     let newServiceSubtotal = 0;
+    let newLuxuryServiceSubtotal = 0;
     let newProductSubtotal = 0;
 
     items.forEach((item) => {
       if (item.type === "service") {
-        newServiceSubtotal += parseFloat(item.service.price);
+        if (item.isLuxury) {
+          newLuxuryServiceSubtotal += parseFloat(item.service.price);
+        } else {
+          newServiceSubtotal += parseFloat(item.service.price);
+        }
       } else if (item.type === "product") {
         newProductSubtotal += parseFloat(item.price);
       }
     });
 
+    // Calculate tax for products and luxury services
     const newProductTax = newProductSubtotal * taxRate;
+    const newLuxuryServiceTax = newLuxuryServiceSubtotal * taxRate;
 
-    setSubtotal(newServiceSubtotal + newProductSubtotal);
+    setSubtotal(
+      newServiceSubtotal + newLuxuryServiceSubtotal + newProductSubtotal,
+    );
     setProductTax(newProductTax);
-    setServiceTax(0); // Services are not taxed
+    setServiceTax(newLuxuryServiceTax); // Apply tax to luxury services
   };
 
   // Helper function to find a stylist by ID
@@ -1172,14 +1176,13 @@ function SalesForm() {
             </Box>
           </Box>
         </Paper>
-
         {/* Services Section */}
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Services
           </Typography>
           <Grid container spacing={2} alignItems="flex-start">
-            {/* Service Dropdown */}
+            {/* Regular Service Dropdown */}
             <Grid item xs={4}>
               <Autocomplete
                 key={serviceKey}
@@ -1190,13 +1193,14 @@ function SalesForm() {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Service"
+                    label="Regular Service"
                     variant="outlined"
                     fullWidth
                   />
                 )}
                 onChange={(event, newValue) => {
                   setSelectedService(newValue);
+                  setSelectedLuxuryService(null); // Clear luxury service when regular selected
                   setCustomPrice(newValue ? newValue.price : "");
                 }}
               />
@@ -1215,7 +1219,7 @@ function SalesForm() {
                     <InputAdornment position="start">$</InputAdornment>
                   ),
                 }}
-                disabled={!selectedService}
+                disabled={!selectedService && !selectedLuxuryService}
               />
             </Grid>
 
@@ -1224,16 +1228,93 @@ function SalesForm() {
               <Button
                 variant="contained"
                 onClick={() => addToCart("service")}
-                disabled={!selectedService || !selectedStylist}
+                disabled={
+                  (!selectedService && !selectedLuxuryService) ||
+                  !selectedStylist
+                }
                 fullWidth
                 sx={{ height: "56px" }}
               >
                 ADD SERVICE
               </Button>
             </Grid>
+
+            {/* Add Luxury Service Dropdown */}
+            {/* Add Luxury Service Dropdown with SKU search */}
+            <Grid item xs={4}>
+              <Autocomplete
+                key={luxuryServiceKey}
+                options={luxuryServices}
+                getOptionLabel={(option) =>
+                  option ? `${option.name} - $${option.price}` : ""
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Luxury Service"
+                    variant="outlined"
+                    placeholder="Search by name or SKU..."
+                    fullWidth
+                  />
+                )}
+                onChange={(event, newValue) => {
+                  setSelectedLuxuryService(newValue);
+                  setSelectedService(null); // Clear regular service when luxury selected
+                  setCustomPrice(newValue ? newValue.price : "");
+                }}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <li key={key} {...otherProps}>
+                      <div>
+                        <Typography>{option.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {option.description
+                            ? `SKU: ${option.description}`
+                            : ""}{" "}
+                          - ${option.price}
+                        </Typography>
+                      </div>
+                    </li>
+                  );
+                }}
+                filterOptions={(options, state) => {
+                  // First, check if state.inputValue matches any SKU exactly
+                  const skuMatch = options.filter(
+                    (option) =>
+                      option.description &&
+                      option.description.toLowerCase() ===
+                        state.inputValue.toLowerCase(),
+                  );
+
+                  // If we have SKU matches, return those first
+                  if (skuMatch.length > 0) {
+                    return skuMatch;
+                  }
+
+                  // Otherwise, perform regular filtering on both SKU and service name
+                  return options.filter(
+                    (option) =>
+                      option.name
+                        .toLowerCase()
+                        .includes(state.inputValue.toLowerCase()) ||
+                      (option.description &&
+                        option.description
+                          .toLowerCase()
+                          .includes(state.inputValue.toLowerCase())),
+                  );
+                }}
+              />
+            </Grid>
+
+            {/* Info text about luxury services being taxed */}
+            <Grid item xs={8}>
+              <Typography variant="caption" color="text.secondary">
+                Note: Luxury services are subject to sales tax.
+              </Typography>
+            </Grid>
           </Grid>
         </Paper>
-
         {/* Products Section */}
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
@@ -1395,7 +1476,14 @@ function SalesForm() {
               >
                 <Typography>
                   {item.type === "service" ? (
-                    `${item.service.name} - ${item.stylist.firstName}`
+                    <>
+                      {item.service.name} - {item.stylist.firstName}
+                      {item.isLuxury && (
+                        <span style={{ color: "#9c27b0", marginLeft: "5px" }}>
+                          [Luxury]
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <>
                       {item.product.productName} (x{item.quantity})
@@ -1441,6 +1529,14 @@ function SalesForm() {
                 <Typography>${productTax.toFixed(2)}</Typography>
               </Box>
             )}
+            {serviceTax > 0 && (
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
+              >
+                <Typography>Luxury Service Tax</Typography>
+                <Typography>${serviceTax.toFixed(2)}</Typography>
+              </Box>
+            )}
             <Box
               sx={{
                 display: "flex",
@@ -1454,7 +1550,7 @@ function SalesForm() {
             >
               <Typography fontWeight="bold">Total</Typography>
               <Typography fontWeight="bold">
-                ${(subtotal + productTax).toFixed(2)}
+                ${(subtotal + productTax + serviceTax).toFixed(2)}
               </Typography>
             </Box>
           </Box>

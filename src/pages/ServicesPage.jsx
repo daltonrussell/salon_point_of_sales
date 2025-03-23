@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -23,36 +23,44 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
-} from '@mui/material';
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+} from "@mui/material";
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  Edit as EditIcon
-} from '@mui/icons-material';
+  Edit as EditIcon,
+} from "@mui/icons-material";
 
-const { ipcRenderer } = window.require('electron');
+const { ipcRenderer } = window.require("electron");
 
 const ServicesPage = () => {
   const [services, setServices] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
   const [newService, setNewService] = useState({
-    name: '',
-    price: '',
-    description: '',
-    status: 'active'
+    name: "",
+    price: "",
+    description: "",
+    status: "active",
+    luxury: false,
   });
   const [editService, setEditService] = useState({
-    id: '',
-    name: '',
-    price: '',
-    description: '',
-    status: 'active',
-    createdAt: '',
-    updatedAt: ''
+    id: "",
+    name: "",
+    price: "",
+    description: "",
+    status: "active",
+    luxury: false, // Add this line
+    createdAt: "",
+    updatedAt: "",
   });
 
   useEffect(() => {
@@ -61,15 +69,15 @@ const ServicesPage = () => {
 
   const loadServices = async () => {
     try {
-      const data = await ipcRenderer.invoke('get-services', 'all');
+      const data = await ipcRenderer.invoke("get-services", "all");
       setServices(data);
     } catch (error) {
-      console.error('Error loading services:', error);
-      showSnackbar('Error loading services', 'error');
+      console.error("Error loading services:", error);
+      showSnackbar("Error loading services", "error");
     }
   };
 
-  const showSnackbar = (message, severity = 'success') => {
+  const showSnackbar = (message, severity = "success") => {
     setSnackbar({
       open: true,
       message,
@@ -84,71 +92,72 @@ const ServicesPage = () => {
     try {
       if (term) {
         // Filter services locally since there's likely not many
-        const filteredServices = services.filter(service =>
-          service.name.toLowerCase().includes(term.toLowerCase()) ||
-          service.description?.toLowerCase().includes(term.toLowerCase())
+        const filteredServices = services.filter(
+          (service) =>
+            service.name.toLowerCase().includes(term.toLowerCase()) ||
+            service.description?.toLowerCase().includes(term.toLowerCase()),
         );
         setServices(filteredServices);
       } else {
         loadServices();
       }
     } catch (error) {
-      console.error('Error searching services:', error);
-      showSnackbar('Error searching services', 'error');
+      console.error("Error searching services:", error);
+      showSnackbar("Error searching services", "error");
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewService(prev => ({
+    setNewService((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleEditInputChange = (e) => {
     const { name, value } = e.target;
-    setEditService(prev => ({
+    setEditService((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke('create-service', {
+      await ipcRenderer.invoke("create-service", {
         ...newService,
-        price: Number(newService.price)
+        price: Number(newService.price),
       });
       setNewService({
-        name: '',
-        price: '',
-        description: '',
-        status: 'active'
+        name: "",
+        price: "",
+        description: "",
+        status: "active",
       });
       setIsDialogOpen(false);
       loadServices();
-      showSnackbar('Service added successfully');
+      showSnackbar("Service added successfully");
     } catch (error) {
-      console.error('Error adding service:', error);
-      showSnackbar('Error adding service', 'error');
+      console.error("Error adding service:", error);
+      showSnackbar("Error adding service", "error");
     }
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke('update-service', {
+      await ipcRenderer.invoke("update-service", {
         ...editService,
-        price: Number(editService.price)
+        price: Number(editService.price),
       });
       setIsEditDialogOpen(false);
       loadServices();
-      showSnackbar('Service updated successfully');
+      showSnackbar("Service updated successfully");
     } catch (error) {
-      console.error('Error updating service:', error);
-      showSnackbar('Error updating service', 'error');
+      console.error("Error updating service:", error);
+      showSnackbar("Error updating service", "error");
     }
   };
 
@@ -157,26 +166,34 @@ const ServicesPage = () => {
       id: service.id,
       name: service.name,
       price: service.price,
-      description: service.description || '',
+      description: service.description || "",
       status: service.status,
+      luxury: service.luxury || false, // Add this line
       createdAt: service.createdAt,
-      updatedAt: service.updatedAt
+      updatedAt: service.updatedAt,
     });
     setIsEditDialogOpen(true);
   };
 
   const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   const statusColorMap = {
-    active: '#4caf50',
-    inactive: '#f44336'
+    active: "#4caf50",
+    inactive: "#f44336",
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
         <TextField
           placeholder="Search services..."
           variant="outlined"
@@ -209,6 +226,7 @@ const ServicesPage = () => {
               <TableCell align="right">Price</TableCell>
               <TableCell>Description</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -223,23 +241,45 @@ const ServicesPage = () => {
               services.map((service) => (
                 <TableRow key={service.id}>
                   <TableCell>{service.name}</TableCell>
-                  <TableCell align="right">${parseFloat(service.price).toFixed(2)}</TableCell>
-                  <TableCell>{service.description || 'N/A'}</TableCell>
+                  <TableCell align="right">
+                    ${parseFloat(service.price).toFixed(2)}
+                  </TableCell>
+                  <TableCell>{service.description || "N/A"}</TableCell>
                   <TableCell>
                     <Box
                       sx={{
-                        display: 'inline-block',
+                        display: "inline-block",
                         px: 1,
                         py: 0.5,
                         borderRadius: 1,
                         bgcolor: `${statusColorMap[service.status]}20`,
                         color: statusColorMap[service.status],
-                        textTransform: 'capitalize',
-                        fontWeight: 'bold'
+                        textTransform: "capitalize",
+                        fontWeight: "bold",
                       }}
                     >
                       {service.status}
                     </Box>
+                  </TableCell>
+                  <TableCell>
+                    {service.luxury ? (
+                      <Box
+                        sx={{
+                          display: "inline-block",
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: 1,
+                          bgcolor: "#9c27b020",
+                          color: "#9c27b0",
+                          textTransform: "capitalize",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        Luxury
+                      </Box>
+                    ) : (
+                      "Standard"
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     <Tooltip title="Edit Service">
@@ -269,7 +309,7 @@ const ServicesPage = () => {
         <form onSubmit={handleSubmit}>
           <DialogTitle>Add New Service</DialogTitle>
           <DialogContent>
-            <Box sx={{ display: 'grid', gap: 2, pt: 2 }}>
+            <Box sx={{ display: "grid", gap: 2, pt: 2 }}>
               <TextField
                 label="Service Name"
                 name="name"
@@ -288,7 +328,9 @@ const ServicesPage = () => {
                 fullWidth
                 required
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position="start">$</InputAdornment>
+                  ),
                 }}
               />
               <TextField
@@ -300,6 +342,7 @@ const ServicesPage = () => {
                 multiline
                 rows={3}
               />
+
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -312,11 +355,28 @@ const ServicesPage = () => {
                   <MenuItem value="inactive">Inactive</MenuItem>
                 </Select>
               </FormControl>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="luxury"
+                    checked={newService.luxury}
+                    onChange={(e) =>
+                      setNewService((prev) => ({
+                        ...prev,
+                        luxury: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Luxury Service (taxable)"
+              />
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
             <Button onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Add Service</Button>
+            <Button type="submit" variant="contained">
+              Add Service
+            </Button>
           </DialogActions>
         </form>
       </Dialog>
@@ -331,7 +391,7 @@ const ServicesPage = () => {
         <form onSubmit={handleEditSubmit}>
           <DialogTitle>Edit Service</DialogTitle>
           <DialogContent>
-            <Box sx={{ display: 'grid', gap: 2, pt: 2 }}>
+            <Box sx={{ display: "grid", gap: 2, pt: 2 }}>
               <TextField
                 label="Service Name"
                 name="name"
@@ -350,7 +410,9 @@ const ServicesPage = () => {
                 fullWidth
                 required
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  startAdornment: (
+                    <InputAdornment position="start">$</InputAdornment>
+                  ),
                 }}
               />
               <TextField
@@ -374,6 +436,21 @@ const ServicesPage = () => {
                   <MenuItem value="inactive">Inactive</MenuItem>
                 </Select>
               </FormControl>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="luxury"
+                    checked={editService.luxury}
+                    onChange={(e) =>
+                      setEditService((prev) => ({
+                        ...prev,
+                        luxury: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Luxury Service (taxable)"
+              />
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
@@ -393,7 +470,7 @@ const ServicesPage = () => {
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {snackbar.message}
         </Alert>
