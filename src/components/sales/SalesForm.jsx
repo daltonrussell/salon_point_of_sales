@@ -28,6 +28,7 @@ import {
 import CustomerModal from "../customers/CustomerModal";
 import SaleDatePicker from "../Reusable/SaleDatePicker";
 import ReceiptGenerator from "../../utils/ReceiptGenerator";
+import { InfoIcon } from "lucide-react";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -49,6 +50,8 @@ function SalesForm() {
   });
   const [serviceKey, setServiceKey] = useState(0);
   const [productKey, setProductKey] = useState(0);
+  const [serviceType, setServiceType] = useState("regular");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [completedSaleData, setCompletedSaleData] = useState(null);
@@ -264,7 +267,7 @@ function SalesForm() {
   // Cart management
   const addToCart = (type) => {
     if (type === "service") {
-      const isLuxury = !!selectedLuxuryService;
+      const isLuxury = serviceType === "luxury";
       const service = isLuxury ? selectedLuxuryService : selectedService;
 
       if (service && selectedStylist) {
@@ -279,7 +282,7 @@ function SalesForm() {
           stylist: selectedStylist,
           price: servicePrice,
           quantity: 1,
-          isLuxury: isLuxury, // Flag to mark if it's a luxury service
+          isLuxury: isLuxury,
         };
         const updatedCart = [...cartItems, newItem];
         setCartItems(updatedCart);
@@ -1181,33 +1184,115 @@ function SalesForm() {
           <Typography variant="h6" gutterBottom>
             Services
           </Typography>
-          <Grid container spacing={2} alignItems="flex-start">
-            {/* Regular Service Dropdown */}
-            <Grid item xs={4}>
-              <Autocomplete
-                key={serviceKey}
-                options={services}
-                getOptionLabel={(option) =>
-                  option ? `${option.name} - $${option.price}` : ""
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Regular Service"
-                    variant="outlined"
-                    fullWidth
-                  />
-                )}
-                onChange={(event, newValue) => {
-                  setSelectedService(newValue);
-                  setSelectedLuxuryService(null); // Clear luxury service when regular selected
-                  setCustomPrice(newValue ? newValue.price : "");
+
+          <Grid container spacing={2}>
+            {/* Service Type Tabs */}
+            <Grid item xs={12}>
+              <Tabs
+                value={serviceType}
+                onChange={(e, newValue) => {
+                  setServiceType(newValue);
+                  setSelectedService(null);
+                  setSelectedLuxuryService(null);
+                  setCustomPrice("");
                 }}
-              />
+                sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+              >
+                <Tab label="Regular Services" value="regular" />
+                <Tab label="Luxury Services" value="luxury" />
+              </Tabs>
+            </Grid>
+
+            {/* Service Selection Row */}
+            <Grid item xs={6}>
+              {serviceType === "regular" ? (
+                <Autocomplete
+                  key={serviceKey}
+                  options={services}
+                  getOptionLabel={(option) =>
+                    option ? `${option.name} - $${option.price}` : ""
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Service"
+                      variant="outlined"
+                      fullWidth
+                    />
+                  )}
+                  onChange={(event, newValue) => {
+                    setSelectedService(newValue);
+                    setCustomPrice(newValue ? newValue.price : "");
+                  }}
+                />
+              ) : (
+                <Autocomplete
+                  key={luxuryServiceKey}
+                  options={luxuryServices}
+                  getOptionLabel={(option) =>
+                    option ? `${option.name} - $${option.price}` : ""
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Luxury Service"
+                      placeholder="Search by name or SKU..."
+                      variant="outlined"
+                      fullWidth
+                    />
+                  )}
+                  onChange={(event, newValue) => {
+                    setSelectedLuxuryService(newValue);
+                    setCustomPrice(newValue ? newValue.price : "");
+                  }}
+                  renderOption={(props, option) => {
+                    const { key, ...otherProps } = props;
+                    return (
+                      <li key={key} {...otherProps}>
+                        <div>
+                          <Typography>{option.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {option.description
+                              ? `SKU: ${option.description}`
+                              : ""}{" "}
+                            - ${option.price}
+                          </Typography>
+                        </div>
+                      </li>
+                    );
+                  }}
+                  filterOptions={(options, state) => {
+                    // First, check if state.inputValue matches any SKU exactly
+                    const skuMatch = options.filter(
+                      (option) =>
+                        option.description &&
+                        option.description.toLowerCase() ===
+                          state.inputValue.toLowerCase(),
+                    );
+
+                    // If we have SKU matches, return those first
+                    if (skuMatch.length > 0) {
+                      return skuMatch;
+                    }
+
+                    // Otherwise, perform regular filtering on both SKU and service name
+                    return options.filter(
+                      (option) =>
+                        option.name
+                          .toLowerCase()
+                          .includes(state.inputValue.toLowerCase()) ||
+                        (option.description &&
+                          option.description
+                            .toLowerCase()
+                            .includes(state.inputValue.toLowerCase())),
+                    );
+                  }}
+                />
+              )}
             </Grid>
 
             {/* Price Text Box */}
-            <Grid item xs={4}>
+            <Grid item xs={3}>
               <TextField
                 label="Price"
                 variant="outlined"
@@ -1224,12 +1309,13 @@ function SalesForm() {
             </Grid>
 
             {/* Add Button */}
-            <Grid item xs={4}>
+            <Grid item xs={3}>
               <Button
                 variant="contained"
                 onClick={() => addToCart("service")}
                 disabled={
-                  (!selectedService && !selectedLuxuryService) ||
+                  (serviceType === "regular" && !selectedService) ||
+                  (serviceType === "luxury" && !selectedLuxuryService) ||
                   !selectedStylist
                 }
                 fullWidth
@@ -1239,80 +1325,17 @@ function SalesForm() {
               </Button>
             </Grid>
 
-            {/* Add Luxury Service Dropdown */}
-            {/* Add Luxury Service Dropdown with SKU search */}
-            <Grid item xs={4}>
-              <Autocomplete
-                key={luxuryServiceKey}
-                options={luxuryServices}
-                getOptionLabel={(option) =>
-                  option ? `${option.name} - $${option.price}` : ""
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Luxury Service"
-                    variant="outlined"
-                    placeholder="Search by name or SKU..."
-                    fullWidth
-                  />
-                )}
-                onChange={(event, newValue) => {
-                  setSelectedLuxuryService(newValue);
-                  setSelectedService(null); // Clear regular service when luxury selected
-                  setCustomPrice(newValue ? newValue.price : "");
-                }}
-                renderOption={(props, option) => {
-                  const { key, ...otherProps } = props;
-                  return (
-                    <li key={key} {...otherProps}>
-                      <div>
-                        <Typography>{option.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {option.description
-                            ? `SKU: ${option.description}`
-                            : ""}{" "}
-                          - ${option.price}
-                        </Typography>
-                      </div>
-                    </li>
-                  );
-                }}
-                filterOptions={(options, state) => {
-                  // First, check if state.inputValue matches any SKU exactly
-                  const skuMatch = options.filter(
-                    (option) =>
-                      option.description &&
-                      option.description.toLowerCase() ===
-                        state.inputValue.toLowerCase(),
-                  );
-
-                  // If we have SKU matches, return those first
-                  if (skuMatch.length > 0) {
-                    return skuMatch;
-                  }
-
-                  // Otherwise, perform regular filtering on both SKU and service name
-                  return options.filter(
-                    (option) =>
-                      option.name
-                        .toLowerCase()
-                        .includes(state.inputValue.toLowerCase()) ||
-                      (option.description &&
-                        option.description
-                          .toLowerCase()
-                          .includes(state.inputValue.toLowerCase())),
-                  );
-                }}
-              />
-            </Grid>
-
-            {/* Info text about luxury services being taxed */}
-            <Grid item xs={8}>
-              <Typography variant="caption" color="text.secondary">
-                Note: Luxury services are subject to sales tax.
-              </Typography>
-            </Grid>
+            {/* Info text about luxury services - only shown in luxury tab */}
+            {serviceType === "luxury" && (
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                  <InfoIcon color="info" fontSize="small" sx={{ mr: 1 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Luxury services are subject to sales tax.
+                  </Typography>
+                </Box>
+              </Grid>
+            )}
           </Grid>
         </Paper>
         {/* Products Section */}
