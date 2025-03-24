@@ -293,8 +293,28 @@ function SalesForm() {
         setServiceKey((prev) => prev + 1);
         setLuxuryServiceKey((prev) => prev + 1);
       }
-    } else if (type === "product") {
-      // Product handling unchanged...
+    } else if (type === "product" && selectedProduct) {
+      // Calculate discounted price
+      const discountMultiplier = 1 - parseFloat(discountPercent) / 100;
+      const originalPrice = selectedProduct.salePrice * productQuantity;
+      const discountedPrice = originalPrice * discountMultiplier;
+
+      const newItem = {
+        id: Date.now(),
+        type: "product",
+        product: selectedProduct,
+        quantity: productQuantity,
+        originalPrice: originalPrice,
+        discountPercent: parseFloat(discountPercent),
+        price: parseFloat(discountedPrice.toFixed(2)),
+      };
+      const updatedCart = [...cartItems, newItem];
+      setCartItems(updatedCart);
+      updateTotals(updatedCart);
+      setSelectedProduct(null);
+      setProductQuantity(1);
+      setDiscountPercent("0");
+      setProductKey((prev) => prev + 1);
     }
   };
 
