@@ -105,7 +105,7 @@ function SalesForm() {
   useEffect(() => {
     if (paymentMethod === "Cash" && cashTender) {
       const tenderAmount = parseFloat(cashTender);
-      const total = subtotal + productTax;
+      const total = subtotal + productTax + serviceTax;
       if (!isNaN(tenderAmount) && tenderAmount >= total) {
         setChangeDue(tenderAmount - total);
       } else {
