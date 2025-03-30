@@ -574,10 +574,10 @@ ipcMain.handle(
       const reportData = Object.entries(groupedData).map(([sku, items]) => {
         const inventory = db.get("inventory").find({ sku }).value();
         const totalSold = _.sumBy(items, "quantity");
-        const totalCharged = _.sumBy(
-          items,
-          (item) => item.price * item.quantity,
-        );
+
+        // FIXED: Just sum the prices directly as they should already include quantity
+        const totalCharged = _.sumBy(items, "price");
+
         const taxRate = 0.0725;
         const taxCollected = totalCharged * taxRate;
 

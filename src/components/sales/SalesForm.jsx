@@ -114,7 +114,7 @@ function SalesForm() {
     } else {
       setChangeDue(0);
     }
-  }, [cashTender, subtotal, productTax, paymentMethod]);
+  }, [cashTender, subtotal, productTax, serviceTax, paymentMethod]);
 
   useEffect(() => {
     localStorage.setItem("saleDate", saleDate.toISOString());
@@ -397,6 +397,7 @@ function SalesForm() {
     stylistId,
     paymentMethod,
     saleDate,
+    serviceTaxAmount,
   ) => {
     const serviceSubtotal = serviceItems.reduce(
       (sum, item) => sum + parseFloat(item.price),
@@ -410,11 +411,12 @@ function SalesForm() {
         serviceId: item.service.id,
         price: item.service.price,
         quantity: 1,
+        isLuxury: item.isLuxury, // Make sure to save the luxury flag
       })),
       products: [],
       subtotal: serviceSubtotal,
-      tax: 0, // Services aren't taxed
-      total: serviceSubtotal,
+      tax: serviceTaxAmount,
+      total: serviceSubtotal + serviceTaxAmount,
       paymentMethod: paymentMethod,
       saleDate: saleDate,
     };
@@ -504,6 +506,7 @@ function SalesForm() {
       stylistId,
       paymentMethod,
       saleDate,
+      serviceTax,
     );
 
     await ipcRenderer.invoke("create-sale", saleData);
@@ -530,6 +533,7 @@ function SalesForm() {
         stylistId,
         paymentMethod,
         saleDate,
+        serviceTax, // Add serviceTax here
       );
       await ipcRenderer.invoke("create-sale", serviceSaleData);
     }
@@ -569,7 +573,7 @@ function SalesForm() {
         ? `${productStylist.firstName} ${productStylist.lastName}`
         : "House",
       serviceSubtotal + productSubtotal,
-      productTaxAmount,
+      productTaxAmount + serviceTax,
       paymentMethod,
       null,
       null,
@@ -593,12 +597,21 @@ function SalesForm() {
   ) => {
     // Create service sale
     if (serviceItems.length > 0) {
+      // Calculate luxury service tax
+      const luxuryServiceItems = serviceItems.filter((item) => item.isLuxury);
+      const luxuryServiceSubtotal = luxuryServiceItems.reduce(
+        (sum, item) => sum + parseFloat(item.price),
+        0,
+      );
+      const luxuryServiceTax = luxuryServiceSubtotal * taxRate;
+
       const serviceSaleData = createServiceSaleData(
         serviceItems,
         clientId,
         stylistId,
         primaryPaymentMethod,
         saleDate,
+        luxuryServiceTax, // Pass the calculated luxury service tax
       );
       await ipcRenderer.invoke("create-sale", serviceSaleData);
     }
@@ -628,6 +641,17 @@ function SalesForm() {
     );
     const productTaxAmount = productSubtotal * taxRate;
 
+    // Calculate luxury service tax for receipt
+    const luxuryServiceItems = serviceItems.filter((item) => item.isLuxury);
+    const luxuryServiceSubtotal = luxuryServiceItems.reduce(
+      (sum, item) => sum + parseFloat(item.price),
+      0,
+    );
+    const luxuryServiceTax = luxuryServiceSubtotal * taxRate;
+
+    // Total tax combines product tax and luxury service tax
+    const totalTaxAmount = productTaxAmount + luxuryServiceTax;
+
     return createCombinedReceiptData(
       serviceItems,
       productItems,
@@ -638,7 +662,7 @@ function SalesForm() {
         ? `${productStylist.firstName} ${productStylist.lastName}`
         : "House",
       serviceSubtotal + productSubtotal,
-      productTaxAmount,
+      totalTaxAmount, // Use combined tax amount
       primaryPaymentMethod,
       secondaryPaymentMethod,
       parseFloat(secondaryPaymentAmount),
@@ -698,6 +722,7 @@ function SalesForm() {
       serviceId: item.service.id,
       price: item.service.price,
       quantity: 1,
+      isLuxury: item.isLuxury, // Add the luxury flag
     }));
 
     const sale1ProductsData = sale1Products.map((item) => ({
@@ -711,10 +736,21 @@ function SalesForm() {
       (sum, item) => sum + item.price,
       0,
     );
-    const sale1Tax = sale1Products.reduce(
+
+    // Calculate product tax
+    const sale1ProductTax = sale1Products.reduce(
       (sum, item) => sum + item.price * taxRate,
       0,
     );
+
+    // Calculate luxury service tax for the first sale
+    const sale1LuxuryServiceSubtotal = sale1Services
+      .filter((item) => item.isLuxury)
+      .reduce((sum, item) => sum + parseFloat(item.price), 0);
+    const sale1LuxuryServiceTax = sale1LuxuryServiceSubtotal * taxRate;
+
+    // Total tax is the sum of product tax and luxury service tax
+    const sale1TotalTax = sale1ProductTax + sale1LuxuryServiceTax;
 
     const saleData1 = {
       ClientId: clientId,
@@ -722,8 +758,8 @@ function SalesForm() {
       services: sale1ServicesData,
       products: sale1ProductsData,
       subtotal: sale1Subtotal,
-      tax: sale1Tax,
-      total: sale1Subtotal + sale1Tax,
+      tax: sale1TotalTax, // Use the combined tax amount
+      total: sale1Subtotal + sale1TotalTax, // Use the combined tax amount
       paymentMethod: primaryPaymentMethod,
       saleDate: saleDate,
     };
@@ -733,6 +769,7 @@ function SalesForm() {
       serviceId: item.service.id,
       price: item.service.price,
       quantity: 1,
+      isLuxury: item.isLuxury, // Add the luxury flag
     }));
 
     const sale2ProductsData = sale2Products.map((item) => ({
@@ -746,10 +783,21 @@ function SalesForm() {
       (sum, item) => sum + item.price,
       0,
     );
-    const sale2Tax = sale2Products.reduce(
+
+    // Calculate product tax
+    const sale2ProductTax = sale2Products.reduce(
       (sum, item) => sum + item.price * taxRate,
       0,
     );
+
+    // Calculate luxury service tax for the second sale
+    const sale2LuxuryServiceSubtotal = sale2Services
+      .filter((item) => item.isLuxury)
+      .reduce((sum, item) => sum + parseFloat(item.price), 0);
+    const sale2LuxuryServiceTax = sale2LuxuryServiceSubtotal * taxRate;
+
+    // Total tax is the sum of product tax and luxury service tax
+    const sale2TotalTax = sale2ProductTax + sale2LuxuryServiceTax;
 
     const saleData2 = {
       ClientId: clientId,
@@ -757,8 +805,8 @@ function SalesForm() {
       services: sale2ServicesData,
       products: sale2ProductsData,
       subtotal: sale2Subtotal,
-      tax: sale2Tax,
-      total: sale2Subtotal + sale2Tax,
+      tax: sale2TotalTax, // Use the combined tax amount
+      total: sale2Subtotal + sale2TotalTax, // Use the combined tax amount
       paymentMethod: secondaryPaymentMethod,
       saleDate: saleDate,
     };
@@ -847,8 +895,8 @@ function SalesForm() {
             services: servicesData,
             products: productsData,
             subtotal,
-            tax: productTax,
-            total: subtotal + productTax,
+            tax: productTax + serviceTax, // Include serviceTax here
+            total: subtotal + productTax + serviceTax, // Include serviceTax here
             paymentMethod: paymentMethod || "back-bar",
             saleDate: saleDate,
           };
@@ -1784,7 +1832,7 @@ function SalesForm() {
                       isNaN(parseFloat(secondaryPayment.amount)) ||
                       parseFloat(secondaryPayment.amount) <= 0 ||
                       parseFloat(secondaryPayment.amount) >=
-                        subtotal + productTax))))
+                        subtotal + productTax + serviceTax))))
             }
           >
             COMPLETE SALE
