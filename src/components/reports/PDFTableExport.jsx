@@ -2,8 +2,19 @@ import React from "react";
 import { Button } from "@mui/material";
 import StylistSalesTable from "./StylistSalesTable";
 import InventoryTaxTable from "./InventoryTaxTable";
+import ClientsServedTable from "./ClientsServedTable";
+import VoidedSalesTable from "./VoidedSalesTable";
+import StylistServicesTable from "./StylistServicesTable";
 
-const PDFTableExport = ({ data, reportType, startDate, endDate }) => {
+const PDFTableExport = ({
+  data,
+  reportType,
+  startDate,
+  endDate,
+  includeVoided,
+  selectedStylists,
+  selectedServices,
+}) => {
   const printToPDF = () => {
     const printWindow = window.open("", "_blank");
 
@@ -17,6 +28,26 @@ const PDFTableExport = ({ data, reportType, startDate, endDate }) => {
         data,
         startDate,
         endDate,
+      );
+    } else if (reportType === "clients-served") {
+      tableContent = ClientsServedTable.generatePdfContent(
+        data,
+        startDate,
+        endDate,
+      );
+    } else if (reportType === "voided-sales") {
+      tableContent = VoidedSalesTable.generatePdfContent(
+        data,
+        startDate,
+        endDate,
+      );
+    } else if (reportType === "stylist-services") {
+      tableContent = StylistServicesTable.generatePdfContent(
+        data,
+        startDate,
+        endDate,
+        selectedStylists,
+        selectedServices,
       );
     }
 
@@ -62,6 +93,9 @@ const PDFTableExport = ({ data, reportType, startDate, endDate }) => {
         </head>
         <body>
           ${tableContent}
+          <div style="margin-top: 30px; text-align: center;">
+            <button onclick="window.print()">Print Report</button>
+          </div>
         </body>
       </html>
     `;

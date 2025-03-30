@@ -530,6 +530,83 @@ ipcMain.handle(
   },
 );
 
+ipcMain.handle(
+  "get-stylist-services",
+  async (
+    event,
+    { stylistIds, serviceIds, startDate, endDate, includeVoided = false },
+  ) => {
+    try {
+      // Get all sales within the date range
+      const sales = db
+        .get("sales")
+        .filter((sale) => {
+          const saleDate = new Date(sale.saleDate);
+          const inDateRange =
+            saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+
+          // Filter by void status if needed
+          const voidCheck = includeVoided ? true : !sale.isVoided;
+
+          // Filter by stylist if specified
+          const stylistCheck = stylistIds
+            ? stylistIds.includes(sale.StylistId)
+            : true;
+
+          return inDateRange && voidCheck && stylistCheck;
+        })
+        .value();
+
+      // Get IDs of sales for filtering sale items
+      const saleIds = sales.map((sale) => sale.id);
+
+      // Get all service sale items from these sales
+      let saleItems = db
+        .get("saleItems")
+        .filter((item) => {
+          return saleIds.includes(item.SaleId) && item.itemType === "service";
+        })
+        .value();
+
+      // Filter by service IDs if specified
+      if (serviceIds && serviceIds.length > 0) {
+        saleItems = saleItems.filter((item) =>
+          serviceIds.includes(item.ServiceId),
+        );
+      }
+
+      // Build the report data with all needed information
+      const reportData = saleItems.map((item) => {
+        const sale = sales.find((s) => s.id === item.SaleId);
+        const service = db.get("services").find({ id: item.ServiceId }).value();
+        const stylist = db.get("stylists").find({ id: sale.StylistId }).value();
+        const client = db.get("clients").find({ id: sale.ClientId }).value();
+
+        return {
+          saleDate: sale.saleDate,
+          serviceId: item.ServiceId,
+          serviceName: service ? service.name : "Unknown Service",
+          stylistId: sale.StylistId,
+          stylistName: stylist
+            ? `${stylist.firstName} ${stylist.lastName}`
+            : "Unknown Stylist",
+          clientId: sale.ClientId,
+          clientName: client
+            ? `${client.firstName} ${client.lastName}`
+            : "Unknown Client",
+          price: item.price,
+          isVoided: !!sale.isVoided,
+        };
+      });
+
+      return reportData;
+    } catch (error) {
+      log("Error generating stylist services report:", error);
+      throw error;
+    }
+  },
+);
+
 // Inventory Reports
 ipcMain.handle(
   "get-inventory-tax-report",
