@@ -36,6 +36,7 @@ import {
   Delete as DeleteIcon,
   ArrowBack as ArrowBackIcon,
   Info as InfoIcon,
+  Print as PrintIcon,
 } from "@mui/icons-material";
 
 const { ipcRenderer } = window.require("electron");
@@ -89,12 +90,152 @@ const InventoryPage = () => {
     loadInventory();
   }, []);
 
-  // Reset the receive dialog when opened
+  // Reset the reception dialog when opened
   useEffect(() => {
     if (isReceiveDialogOpen) {
       resetReceiveDialog();
     }
   }, [isReceiveDialogOpen]);
+  const handlePrintInventory = () => {
+    // Create a new window for printing
+    const printWindow = window.open("", "_blank");
+
+    // Calculate totals for cost and value
+    const totalItems = inventory.reduce((sum, item) => sum + item.quantity, 0);
+    const totalCost = inventory
+      .reduce(
+        (sum, item) => sum + parseFloat(item.purchasePrice) * item.quantity,
+        0,
+      )
+      .toFixed(2);
+    const totalValue = inventory
+      .reduce(
+        (sum, item) => sum + parseFloat(item.salePrice) * item.quantity,
+        0,
+      )
+      .toFixed(2);
+
+    // Generate the HTML content for printing
+    const printContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Inventory Report - A New You</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+          }
+          h1 {
+            text-align: center;
+            margin-bottom: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+          }
+          .print-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+          .print-info {
+            font-size: 12px;
+            color: #666;
+          }
+          .text-right {
+            text-align: right;
+          }
+          .summary {
+            margin-top: 20px;
+            font-weight: bold;
+          }
+          @media print {
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-header">
+          <h1>Inventory Report</h1>
+          <div class="print-info">
+            <div>A New You</div>
+            <div>Date: ${new Date().toLocaleDateString()}</div>
+            <div>Time: ${new Date().toLocaleTimeString()}</div>
+          </div>
+        </div>
+        
+        ${searchTerm ? `<p>Filtered by: "${searchTerm}"</p>` : ""}
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Manufacturer</th>
+              <th>SKU</th>
+              <th class="text-right">Qty</th>
+              <th class="text-right">Purchase Price</th>
+              <th class="text-right">Sale Price</th>
+              <th class="text-right">Total Cost</th>
+              <th class="text-right">Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${inventory
+              .map(
+                (item) => `
+              <tr>
+                <td>${item.productName}</td>
+                <td>${item.manufacturer || "N/A"}</td>
+                <td>${item.sku}</td>
+                <td class="text-right">${item.quantity}</td>
+                <td class="text-right">$${parseFloat(item.purchasePrice).toFixed(2)}</td>
+                <td class="text-right">$${parseFloat(item.salePrice).toFixed(2)}</td>
+                <td class="text-right">$${(parseFloat(item.purchasePrice) * item.quantity).toFixed(2)}</td>
+                <td class="text-right">$${(parseFloat(item.salePrice) * item.quantity).toFixed(2)}</td>
+              </tr>
+            `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        
+        <div class="summary">
+          <p>Total Items: ${totalItems}</p>
+          <p>Total Inventory Cost: $${totalCost}</p>
+          <p>Total Inventory Value: $${totalValue}</p>
+        </div>
+        
+        <div class="no-print" style="text-align: center; margin-top: 30px;">
+          <button onclick="window.print()">Print Report</button>
+        </div>
+        
+        <script>
+          // Auto-print after a brief delay
+          setTimeout(function() {
+            window.print();
+          }, 500);
+        </script>
+      </body>
+    </html>
+  `;
+
+    // Write to the new window and close the document
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+  };
 
   const resetReceiveDialog = () => {
     setReceiveStep(0);
@@ -359,14 +500,23 @@ const InventoryPage = () => {
             ),
           }}
         />
-        {/* Only show Receive Inventory button now */}
-        <Button
-          variant="contained"
-          startIcon={<ReceiveIcon />}
-          onClick={() => setIsReceiveDialogOpen(true)}
-        >
-          Receive Inventory
-        </Button>
+        {/* Group the buttons together */}
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<ReceiveIcon />}
+            onClick={() => setIsReceiveDialogOpen(true)}
+          >
+            Receive Inventory
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<PrintIcon />}
+            onClick={handlePrintInventory}
+          >
+            Print Inventory
+          </Button>
+        </Box>
       </Box>
 
       <TableContainer component={Paper}>
