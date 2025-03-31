@@ -154,46 +154,6 @@ const StylistServicesTable = ({
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Detailed Services List */}
-      <Typography variant="h6" gutterBottom mt={4}>
-        Detailed Services List
-      </Typography>
-      <TableContainer>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Date</TableCell>
-              <TableCell>Service</TableCell>
-              <TableCell>Stylist</TableCell>
-              <TableCell>Client</TableCell>
-              <TableCell align="right">Price</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.map((item, index) => (
-              <TableRow key={index}>
-                <TableCell>{formatDate(item.saleDate)}</TableCell>
-                <TableCell>{item.serviceName}</TableCell>
-                <TableCell>{item.stylistName}</TableCell>
-                <TableCell>{item.clientName}</TableCell>
-                <TableCell align="right">
-                  ${parseFloat(item.price).toFixed(2)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-          <TableHead>
-            <TableRow>
-              <TableCell colSpan={3}>Totals</TableCell>
-              <TableCell align="right">Services: {totalServices}</TableCell>
-              <TableCell align="right">
-                Revenue: ${totalRevenue.toFixed(2)}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-        </Table>
-      </TableContainer>
     </Box>
   );
 };
