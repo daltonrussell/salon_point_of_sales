@@ -1051,7 +1051,7 @@ function SalesForm() {
             /* Receipt styling for thermal printer compatibility */
             body { 
               font-family: 'Courier New', monospace;
-              font-size: 12px;
+              font-size: 16px;
               padding: 20px;
               max-width: 80mm;
               margin: 0 auto;
@@ -1201,7 +1201,17 @@ function SalesForm() {
             <Box sx={{ display: "flex", gap: 1 }}>
               <Autocomplete
                 sx={{ flex: 1 }}
-                options={customers}
+                options={
+                  // Filter unique name combinations on-the-fly
+                  [
+                    ...new Map(
+                      customers.map((client) => [
+                        `${client.lastName.toLowerCase()},${client.firstName.toLowerCase()}`,
+                        client,
+                      ]),
+                    ).values(),
+                  ]
+                }
                 getOptionLabel={(option) =>
                   option ? `${option.lastName}, ${option.firstName}` : ""
                 }
