@@ -831,6 +831,14 @@ function SalesForm() {
 
   // The main handleCompleteSale function, now simplified with helper functions
   const handleCompleteSale = async () => {
+    // Prevent multiple simultaneous submissions
+    if (window.saleInProgress) {
+      console.log("Sale already in progress, ignoring duplicate submission");
+      return;
+    }
+
+    window.saleInProgress = true;
+
     try {
       // Check what types of items we have in the cart
       const hasBackBarItems = cartItems.some((item) => item.isBackBar);
@@ -993,7 +1001,10 @@ function SalesForm() {
       }
     } catch (error) {
       console.error("Error completing sale:", error);
-      alert("Error completing sale");
+      alert("Error completing sale: " + error.message);
+    } finally {
+      // Always clear the flag, even if there was an error
+      window.saleInProgress = false;
     }
   };
 
@@ -1265,8 +1276,9 @@ function SalesForm() {
             <Grid item xs={6}>
               {serviceType === "regular" ? (
                 <Autocomplete
-                  key={serviceKey}
+                  key={`service-${serviceKey}`}
                   options={services}
+                  value={selectedService}
                   getOptionLabel={(option) =>
                     option ? `${option.name} - $${option.price}` : ""
                   }
@@ -1285,8 +1297,9 @@ function SalesForm() {
                 />
               ) : (
                 <Autocomplete
-                  key={luxuryServiceKey}
+                  key={`luxury-service-${luxuryServiceKey}`}
                   options={luxuryServices}
+                  value={selectedLuxuryService}
                   getOptionLabel={(option) =>
                     option ? `${option.name} - $${option.price}` : ""
                   }
@@ -1405,8 +1418,9 @@ function SalesForm() {
             {/* Product Dropdown */}
             <Grid item xs={8}>
               <Autocomplete
-                key={productKey}
+                key={`product-${productKey}`}
                 options={products}
+                value={selectedProduct}
                 getOptionLabel={(option) =>
                   option ? `${option.productName} - $${option.salePrice}` : ""
                 }
