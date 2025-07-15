@@ -6,6 +6,7 @@ const FileSync = require("lowdb/adapters/FileSync");
 const isDev = require("electron-is-dev");
 const _ = require("lodash");
 const fs = require("fs");
+const os = require("os");
 
 /*** CONSTANTS & UTILITIES ***/
 let mainWindow;
@@ -39,6 +40,204 @@ db.defaults({
   saleItems: [],
   inventory: [],
 }).write();
+
+/*** DATABASE BACKUP FUNCTIONALITY ***/
+function getOneDrivePath() {
+  const userProfile = os.homedir();
+  const possiblePaths = [
+    path.join(userProfile, "OneDrive"),
+    path.join(userProfile, "OneDrive - Personal"),
+    path.join(userProfile, "OneDrive - Business"),
+    path.join(userProfile, "OneDrive for Business"),
+  ];
+
+  // Check each OneDrive path
+  for (const oneDrivePath of possiblePaths) {
+    try {
+      if (fs.existsSync(oneDrivePath)) {
+        // Verify we can write to this location
+        fs.accessSync(oneDrivePath, fs.constants.W_OK);
+        log("Found writable OneDrive folder:", oneDrivePath);
+        return oneDrivePath;
+      }
+    } catch (error) {
+      log(`OneDrive path exists but not writable: ${oneDrivePath}`, error.message);
+      continue;
+    }
+  }
+
+  // Fallback options in order of preference
+  const fallbackPaths = [
+    path.join(userProfile, "Documents"),
+    path.join(userProfile, "Desktop"),
+    userProfile,
+    os.tmpdir()
+  ];
+
+  for (const fallbackPath of fallbackPaths) {
+    try {
+      if (fs.existsSync(fallbackPath)) {
+        fs.accessSync(fallbackPath, fs.constants.W_OK);
+        log(`OneDrive not found, using fallback: ${fallbackPath}`);
+        return fallbackPath;
+      }
+    } catch (error) {
+      log(`Fallback path not writable: ${fallbackPath}`, error.message);
+      continue;
+    }
+  }
+
+  // Last resort - try to create a backup folder in temp
+  const tempBackupPath = path.join(os.tmpdir(), "SalonBackups");
+  log("Warning: Using temporary directory for backups:", tempBackupPath);
+  return os.tmpdir();
+}
+
+function createDatabaseBackup() {
+  try {
+    // Check if source database file exists
+    if (!fs.existsSync(DB_PATH)) {
+      throw new Error(`Source database file not found: ${DB_PATH}`);
+    }
+
+    const oneDrivePath = getOneDrivePath();
+    const backupFolder = path.join(oneDrivePath, "SalonBackups");
+
+    // Create backup folder if it doesn't exist
+    if (!fs.existsSync(backupFolder)) {
+      try {
+        fs.mkdirSync(backupFolder, { recursive: true });
+        log("Created backup folder:", backupFolder);
+      } catch (folderError) {
+        log("Failed to create backup folder:", folderError);
+        throw new Error(`Cannot create backup folder: ${backupFolder}. ${folderError.message}`);
+      }
+    }
+
+    // Verify we can write to the backup folder
+    try {
+      fs.accessSync(backupFolder, fs.constants.W_OK);
+    } catch (accessError) {
+      throw new Error(`No write permission to backup folder: ${backupFolder}`);
+    }
+
+    // Create backup filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFileName = `salon-database-${timestamp}.json`;
+    const backupPath = path.join(backupFolder, backupFileName);
+
+    // Copy database file with error handling
+    try {
+      fs.copyFileSync(DB_PATH, backupPath);
+      log("Database backup created:", backupPath);
+    } catch (copyError) {
+      log("Failed to copy database file:", copyError);
+      throw new Error(`Failed to create backup file: ${copyError.message}`);
+    }
+
+    // Verify the backup was created successfully
+    if (!fs.existsSync(backupPath)) {
+      throw new Error("Backup file was not created successfully");
+    }
+
+    // Verify backup file size (should be > 0)
+    const backupStats = fs.statSync(backupPath);
+    if (backupStats.size === 0) {
+      fs.unlinkSync(backupPath); // Remove empty file
+      throw new Error("Backup file is empty");
+    }
+
+    // Clean up old backups (don't let this fail the main backup)
+    try {
+      cleanupOldBackups(backupFolder);
+    } catch (cleanupError) {
+      log("Warning: Failed to cleanup old backups:", cleanupError);
+      // Don't throw - backup was successful even if cleanup failed
+    }
+
+    return backupPath;
+  } catch (error) {
+    log("Error creating database backup:", error);
+    throw error;
+  }
+}
+
+function cleanupOldBackups(backupFolder) {
+  try {
+    if (!fs.existsSync(backupFolder)) {
+      log("Backup folder doesn't exist, skipping cleanup");
+      return;
+    }
+
+    const files = fs.readdirSync(backupFolder);
+    const backupFiles = files.filter(file => file.startsWith('salon-database-') && file.endsWith('.json'));
+
+    if (backupFiles.length <= 30) {
+      log(`Only ${backupFiles.length} backup files, no cleanup needed`);
+      return;
+    }
+
+    // Sort by creation time (newest first)
+    const fileStats = backupFiles.map(file => {
+      try {
+        return {
+          name: file,
+          path: path.join(backupFolder, file),
+          mtime: fs.statSync(path.join(backupFolder, file)).mtime
+        };
+      } catch (statError) {
+        log(`Warning: Could not stat backup file ${file}:`, statError.message);
+        return null;
+      }
+    }).filter(Boolean).sort((a, b) => b.mtime - a.mtime);
+
+    // Keep only the last 30 backups
+    const filesToDelete = fileStats.slice(30);
+    let deletedCount = 0;
+
+    filesToDelete.forEach(file => {
+      try {
+        fs.unlinkSync(file.path);
+        log("Deleted old backup:", file.name);
+        deletedCount++;
+      } catch (deleteError) {
+        log(`Warning: Could not delete backup file ${file.name}:`, deleteError.message);
+      }
+    });
+
+    if (deletedCount > 0) {
+      log(`Cleaned up ${deletedCount} old backup files`);
+    }
+  } catch (error) {
+    log("Error during backup cleanup:", error.message);
+    // Don't throw - cleanup failure shouldn't prevent new backups
+  }
+}
+
+function schedulePeriodicBackups() {
+  // Create initial backup with error handling
+  try {
+    createDatabaseBackup();
+    log("Initial database backup created successfully");
+  } catch (error) {
+    log("Warning: Initial database backup failed:", error.message);
+    // Don't prevent app startup if initial backup fails
+  }
+
+  // Schedule backups every 4 hours (14400000 ms)
+  setInterval(() => {
+    log("Creating scheduled database backup...");
+    try {
+      createDatabaseBackup();
+      log("Scheduled backup completed successfully");
+    } catch (error) {
+      log("Warning: Scheduled backup failed:", error.message);
+      // Continue running - don't crash the app if backup fails
+    }
+  }, 4 * 60 * 60 * 1000);
+
+  log("Periodic database backups scheduled every 4 hours");
+}
 
 /*** WINDOW MANAGEMENT ***/
 function createWindow() {
@@ -135,6 +334,10 @@ app.whenReady().then(async () => {
     // Continue with normal initialization
     createWindow();
     log("Window created successfully");
+
+    // Initialize database backups
+    schedulePeriodicBackups();
+    log("Database backup system initialized");
   } catch (err) {
     log("Error during initialization:", err);
   }
@@ -1430,6 +1633,55 @@ ipcMain.handle("get-hidden-inventory", async () => {
       .value();
   } catch (error) {
     log("Error fetching hidden inventory:", error);
+    throw error;
+  }
+});
+
+// Database Backup Handlers
+ipcMain.handle("create-manual-backup", async () => {
+  try {
+    const backupPath = createDatabaseBackup();
+    return { success: true, backupPath };
+  } catch (error) {
+    log("Error creating manual backup:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("get-backup-info", async () => {
+  try {
+    const oneDrivePath = getOneDrivePath();
+    const backupFolder = path.join(oneDrivePath, "SalonBackups");
+
+    if (!fs.existsSync(backupFolder)) {
+      return { backupFolder, backupCount: 0, lastBackup: null };
+    }
+
+    const files = fs.readdirSync(backupFolder);
+    const backupFiles = files.filter(file => file.startsWith('salon-database-') && file.endsWith('.json'));
+
+    let lastBackup = null;
+    if (backupFiles.length > 0) {
+      const latestFile = backupFiles
+        .map(file => ({
+          name: file,
+          mtime: fs.statSync(path.join(backupFolder, file)).mtime
+        }))
+        .sort((a, b) => b.mtime - a.mtime)[0];
+
+      lastBackup = {
+        filename: latestFile.name,
+        date: latestFile.mtime
+      };
+    }
+
+    return {
+      backupFolder,
+      backupCount: backupFiles.length,
+      lastBackup
+    };
+  } catch (error) {
+    log("Error getting backup info:", error);
     throw error;
   }
 });
