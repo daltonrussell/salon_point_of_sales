@@ -103,6 +103,7 @@ const Sale = {
       saleDate: new Date(),
       subtotal: data.subtotal,
       tax: data.tax,
+      tip: data.tip || 0, // Add tip field
       total: data.total,
       paymentMethod: data.paymentMethod,
       createdAt: new Date(),

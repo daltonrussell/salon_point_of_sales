@@ -154,6 +154,16 @@ class ReceiptGenerator {
               `
                   : ""
               }
+              ${
+                parseFloat(saleData.tip || 0) > 0
+                  ? `
+                <tr>
+                  <td>Tip:</td>
+                  <td class="text-right">$${parseFloat(saleData.tip).toFixed(2)}</td>
+                </tr>
+              `
+                  : ""
+              }
               <tr class="total-row">
                 <td><strong>Total:</strong></td>
                 <td class="text-right"><strong>$${parseFloat(saleData.total).toFixed(2)}</strong></td>

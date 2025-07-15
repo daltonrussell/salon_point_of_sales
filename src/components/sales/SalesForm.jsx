@@ -7,7 +7,6 @@ import {
   Typography,
   Grid,
   Button,
-  ButtonGroup,
   InputAdornment,
   Select,
   MenuItem,
@@ -27,12 +26,12 @@ import {
 } from "@mui/material";
 import CustomerModal from "../customers/CustomerModal";
 import SaleDatePicker from "../Reusable/SaleDatePicker";
+import TipComponent from "../Reusable/TipComponent";
 import ReceiptGenerator from "../../utils/ReceiptGenerator";
 import { InfoIcon } from "lucide-react";
+import { PAYMENT_METHODS } from "../../constants/salesConstants";
 
 const { ipcRenderer } = window.require("electron");
-
-const paymentMethods = ["Cash", "Credit Card", "Debit Card", "Check"];
 
 function SalesForm() {
   // Data states
@@ -63,6 +62,7 @@ function SalesForm() {
 
   const [cashTender, setCashTender] = useState("");
   const [changeDue, setChangeDue] = useState(0);
+  const [tipAmount, setTipAmount] = useState(0);
 
   // Product Stylist ID from settings
   const [productStylistId, setProductStylistId] = useState(() => {
@@ -105,7 +105,7 @@ function SalesForm() {
   useEffect(() => {
     if (paymentMethod === "Cash" && cashTender) {
       const tenderAmount = parseFloat(cashTender);
-      const total = subtotal + productTax + serviceTax;
+      const total = subtotal + productTax + serviceTax + tipAmount;
       if (!isNaN(tenderAmount) && tenderAmount >= total) {
         setChangeDue(tenderAmount - total);
       } else {
@@ -114,7 +114,7 @@ function SalesForm() {
     } else {
       setChangeDue(0);
     }
-  }, [cashTender, subtotal, productTax, serviceTax, paymentMethod]);
+  }, [cashTender, subtotal, productTax, serviceTax, tipAmount, paymentMethod]);
 
   useEffect(() => {
     localStorage.setItem("saleDate", saleDate.toISOString());
@@ -366,6 +366,7 @@ function SalesForm() {
     paymentMethod,
     saleDate,
     taxRate,
+    tipAmount = 0,
   ) => {
     const productSubtotal = productItems.reduce(
       (sum, item) => sum + parseFloat(item.price),
@@ -385,7 +386,8 @@ function SalesForm() {
       })),
       subtotal: productSubtotal,
       tax: productTaxAmount,
-      total: productSubtotal + productTaxAmount,
+      tip: tipAmount,
+      total: productSubtotal + productTaxAmount + tipAmount,
       paymentMethod: paymentMethod,
       saleDate: saleDate,
     };
@@ -398,6 +400,7 @@ function SalesForm() {
     paymentMethod,
     saleDate,
     serviceTaxAmount,
+    tipAmount = 0,
   ) => {
     const serviceSubtotal = serviceItems.reduce(
       (sum, item) => sum + parseFloat(item.price),
@@ -416,7 +419,8 @@ function SalesForm() {
       products: [],
       subtotal: serviceSubtotal,
       tax: serviceTaxAmount,
-      total: serviceSubtotal + serviceTaxAmount,
+      tip: tipAmount,
+      total: serviceSubtotal + serviceTaxAmount + tipAmount,
       paymentMethod: paymentMethod,
       saleDate: saleDate,
     };
@@ -432,6 +436,7 @@ function SalesForm() {
     productStylistName,
     subtotal,
     tax,
+    tip,
     paymentMethod,
     secondaryPaymentMethod = null,
     secondaryPaymentAmount = null,
@@ -460,7 +465,8 @@ function SalesForm() {
       })),
       subtotal,
       tax,
-      total: subtotal + tax,
+      tip,
+      total: subtotal + tax + tip,
       paymentMethod,
       secondaryPaymentMethod,
       secondaryPaymentAmount,
@@ -478,6 +484,7 @@ function SalesForm() {
     paymentMethod,
     saleDate,
     taxRate,
+    tipAmount,
   ) => {
     const saleData = createProductSaleData(
       productItems,
@@ -486,6 +493,7 @@ function SalesForm() {
       paymentMethod,
       saleDate,
       taxRate,
+      tipAmount,
     );
 
     await ipcRenderer.invoke("create-sale", saleData);
@@ -499,6 +507,7 @@ function SalesForm() {
     stylistId,
     paymentMethod,
     saleDate,
+    tipAmount,
   ) => {
     const saleData = createServiceSaleData(
       serviceItems,
@@ -507,6 +516,7 @@ function SalesForm() {
       paymentMethod,
       saleDate,
       serviceTax,
+      tipAmount,
     );
 
     await ipcRenderer.invoke("create-sale", saleData);
@@ -848,6 +858,7 @@ function SalesForm() {
           paymentMethod || "back-bar",
           saleDate,
           taxRate,
+          tipAmount,
         );
       }
       // 2. MIXED SALE WITHOUT SPLIT PAYMENT - Split attribution between stylists
@@ -873,6 +884,7 @@ function SalesForm() {
             stylistId,
             paymentMethod,
             saleDate,
+            tipAmount,
           );
         } else {
           // Combined service and product sale (no product stylist defined)
@@ -896,7 +908,8 @@ function SalesForm() {
             products: productsData,
             subtotal,
             tax: productTax + serviceTax, // Include serviceTax here
-            total: subtotal + productTax + serviceTax, // Include serviceTax here
+            tip: tipAmount,
+            total: subtotal + productTax + serviceTax + tipAmount, // Include serviceTax and tip here
             paymentMethod: paymentMethod || "back-bar",
             saleDate: saleDate,
           };
@@ -913,13 +926,13 @@ function SalesForm() {
         if (
           isNaN(secondaryAmount) ||
           secondaryAmount <= 0 ||
-          secondaryAmount >= subtotal + productTax
+          secondaryAmount >= subtotal + productTax + serviceTax + tipAmount
         ) {
           alert("Please enter a valid amount for the split payment");
           return;
         }
 
-        const primaryAmount = subtotal + productTax - secondaryAmount;
+        const primaryAmount = subtotal + productTax + serviceTax + tipAmount - secondaryAmount;
 
         // Split payment with product stylist
         if (shouldUseProductStylist) {
@@ -1087,41 +1100,7 @@ function SalesForm() {
     }
   };
 
-  const createSaleDataObject = (services, products, amount, paymentMethod) => {
-    const servicesData = services.map((item) => ({
-      serviceId: item.service.id,
-      price: item.service.price,
-      quantity: 1,
-    }));
 
-    const productsData = products.map((item) => ({
-      inventoryId: item.product.id,
-      price: item.price,
-      quantity: item.quantity,
-      isBackBar: !!item.isBackBar,
-    }));
-
-    const subtotalAmount = [...services, ...products].reduce(
-      (sum, item) => sum + item.price,
-      0,
-    );
-    const taxAmount = products.reduce(
-      (sum, item) => sum + item.price * taxRate,
-      0,
-    );
-
-    return {
-      ClientId: selectedCustomer ? selectedCustomer.id : null,
-      StylistId: selectedStylist ? selectedStylist.id : null,
-      services: servicesData,
-      products: productsData,
-      subtotal: subtotalAmount,
-      tax: taxAmount,
-      total: subtotalAmount + taxAmount,
-      paymentMethod: paymentMethod,
-      saleDate: saleDate,
-    };
-  };
 
   const resetForm = () => {
     // Reset form immediately after successful sale
@@ -1137,6 +1116,7 @@ function SalesForm() {
     setDiscountPercent("0");
     setProductKey(Date.now()); // Use timestamp for more reliable reset
     setSplitPayment(false);
+    setTipAmount(0); // Reset tip amount
     //TODO: Not currently resetting the date to the current date. Replace this when historical data has been entered
     // setSaleDate(new Date()); // Reset to current date
 
@@ -1649,9 +1629,38 @@ function SalesForm() {
                 pt: 1,
               }}
             >
-              <Typography fontWeight="bold">Total</Typography>
+              <Typography fontWeight="bold">Subtotal + Tax</Typography>
               <Typography fontWeight="bold">
                 ${(subtotal + productTax + serviceTax).toFixed(2)}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Tip Section */}
+          <TipComponent
+            subtotal={subtotal}
+            onTipChange={setTipAmount}
+            initialTip={tipAmount}
+            disabled={cartItems.length === 0}
+          />
+
+          {/* Final Total with Tip */}
+          <Box sx={{ mb: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                mb: 1,
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+                borderTop: 2,
+                borderColor: "primary.main",
+                pt: 1,
+              }}
+            >
+              <Typography fontWeight="bold" variant="h6">Final Total</Typography>
+              <Typography fontWeight="bold" variant="h6" color="primary">
+                ${(subtotal + productTax + serviceTax + tipAmount).toFixed(2)}
               </Typography>
             </Box>
           </Box>
@@ -1686,7 +1695,7 @@ function SalesForm() {
                   label="Payment Method"
                   onChange={handlePaymentMethodChange}
                 >
-                  {paymentMethods.map((method) => (
+                  {PAYMENT_METHODS.map((method) => (
                     <MenuItem key={method} value={method}>
                       {method}
                     </MenuItem>
@@ -1769,7 +1778,7 @@ function SalesForm() {
                     label="First Payment Method"
                     onChange={handlePaymentMethodChange}
                   >
-                    {paymentMethods.map((method) => (
+                    {PAYMENT_METHODS.map((method) => (
                       <MenuItem key={method} value={method}>
                         {method}
                       </MenuItem>
@@ -1797,7 +1806,7 @@ function SalesForm() {
                         handleSecondaryPaymentChange("method", e.target.value)
                       }
                     >
-                      {paymentMethods.map((method) => (
+                      {PAYMENT_METHODS.map((method) => (
                         <MenuItem key={method} value={method}>
                           {method}
                         </MenuItem>
@@ -1842,7 +1851,7 @@ function SalesForm() {
                       isNaN(parseFloat(secondaryPayment.amount)) ||
                       parseFloat(secondaryPayment.amount) <= 0 ||
                       parseFloat(secondaryPayment.amount) >=
-                        subtotal + productTax + serviceTax))))
+                        subtotal + productTax + serviceTax + tipAmount))))
             }
           >
             COMPLETE SALE

@@ -44,8 +44,8 @@ db.defaults({
 function createWindow() {
   log("Creating window...");
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1600, // Increased from 1200 to 1600 (+400px)
+    height: 1000, // Increased from 800 to 1000 (+200px)
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -374,6 +374,7 @@ ipcMain.handle(
       products,
       subtotal,
       tax,
+      tip,
       total,
       paymentMethod,
       saleDate,
@@ -386,6 +387,7 @@ ipcMain.handle(
         StylistId,
         subtotal,
         tax,
+        tip: tip || 0, // Add tip field
         total,
         paymentMethod,
         saleDate: saleDate || new Date(),
