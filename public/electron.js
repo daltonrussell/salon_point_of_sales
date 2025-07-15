@@ -982,13 +982,25 @@ ipcMain.handle(
           .filter({ SaleId: sale.id })
           .value();
 
-        // Group items by type for easier reporting
-        const services = saleItems.filter(
-          (item) => item.itemType === "service",
-        );
-        const products = saleItems.filter(
-          (item) => item.itemType === "product",
-        );
+        const services = saleItems
+          .filter((item) => item.itemType === "service")
+          .map((item) => {
+            const service = db
+              .get("services")
+              .find({ id: item.ServiceId })
+              .value();
+            return { ...item, service };
+          });
+
+        const products = saleItems
+          .filter((item) => item.itemType === "product")
+          .map((item) => {
+            const product = db
+              .get("inventory")
+              .find({ id: item.InventoryId })
+              .value();
+            return { ...item, product };
+          });
 
         // Calculate service and product totals
         const serviceTotal = _.sumBy(services, (item) => item.price);
@@ -1014,6 +1026,99 @@ ipcMain.handle(
       return formattedSales;
     } catch (error) {
       log("Error generating voided sales report:", error);
+      throw error;
+    }
+  },
+);
+
+// Luxury Sales Report Handler
+ipcMain.handle(
+  "get-luxury-sales-report",
+  async (event, { stylistId, startDate, endDate, includeVoided = false }) => {
+    try {
+      // Get all sales within the date range
+      const sales = db
+        .get("sales")
+        .filter((sale) => {
+          const saleDate = new Date(sale.saleDate);
+          const inDateRange =
+            saleDate >= new Date(startDate) && saleDate <= new Date(endDate);
+
+          // Filter by void status if needed
+          const voidCheck = includeVoided ? true : !sale.isVoided;
+
+          // Filter by stylist if specified
+          const stylistCheck = stylistId ? sale.StylistId === stylistId : true;
+
+          return inDateRange && voidCheck && stylistCheck;
+        })
+        .value();
+
+      // Get all sale items for these sales that are luxury services
+      const luxurySaleItems = [];
+
+      sales.forEach((sale) => {
+        const saleItems = db
+          .get("saleItems")
+          .filter({ SaleId: sale.id, itemType: "service" })
+          .value();
+
+        saleItems.forEach((item) => {
+          const service = db.get("services").find({ id: item.ServiceId }).value();
+          if (service && service.luxury) {
+            luxurySaleItems.push({
+              ...item,
+              sale,
+              service,
+            });
+          }
+        });
+      });
+
+      // Group by stylist
+      const groupedByStylist = _.groupBy(luxurySaleItems, (item) => item.sale.StylistId);
+
+      // Get tax rate from localStorage or use default
+      const taxRate = 0.0725; // Default tax rate, could be made configurable
+
+      // Format the report data
+      const reportData = Object.entries(groupedByStylist).map(([stylistId, items]) => {
+        const stylist = db.get("stylists").find({ id: stylistId }).value();
+
+        const luxuryItems = items.map((item) => {
+          const client = db.get("clients").find({ id: item.sale.ClientId }).value();
+
+          return {
+            saleDate: item.sale.saleDate,
+            clientName: client ? `${client.firstName} ${client.lastName}` : "N/A",
+            serviceName: item.service.name,
+            serviceDescription: item.service.description || "",
+            price: item.price,
+            quantity: item.quantity || 1,
+            subtotal: item.price * (item.quantity || 1),
+            tax: item.price * (item.quantity || 1) * taxRate,
+            total: item.price * (item.quantity || 1) * (1 + taxRate),
+          };
+        });
+
+        const totalSubtotal = _.sumBy(luxuryItems, 'subtotal');
+        const totalTax = _.sumBy(luxuryItems, 'tax');
+        const totalAmount = _.sumBy(luxuryItems, 'total');
+
+        return {
+          stylistId,
+          stylistName: stylist ? `${stylist.firstName} ${stylist.lastName}` : "Unknown Stylist",
+          luxuryItems,
+          totalSubtotal,
+          totalTax,
+          totalAmount,
+          itemCount: luxuryItems.length,
+        };
+      });
+
+      return reportData;
+    } catch (error) {
+      log("Error generating luxury sales report:", error);
       throw error;
     }
   },

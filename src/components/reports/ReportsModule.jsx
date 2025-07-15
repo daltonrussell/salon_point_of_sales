@@ -22,6 +22,7 @@ import {
   Divider,
 } from "@mui/material";
 import StylistServicesTable from "./StylistServicesTable";
+import LuxurySalesTable from "./LuxurySalesTable";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -48,7 +49,8 @@ function ReportsModule() {
     { value: "inventory-tax", label: "Inventory Tax Report" },
     { value: "clients-served", label: "Clients Served Report" },
     { value: "voided-sales", label: "Voided Sales Report" },
-    { value: "stylist-services", label: "Stylist Services Report" }, // Add this new option
+    { value: "stylist-services", label: "Stylist Services Report" },
+    { value: "luxury-sales", label: "Luxury Sales Report" },
   ];
 
   useEffect(() => {
@@ -129,6 +131,15 @@ function ReportsModule() {
             includeVoided,
           });
           break;
+
+        case "luxury-sales":
+          result = await ipcRenderer.invoke("get-luxury-sales-report", {
+            stylistId: selectedStylist?.id,
+            startDate: startDateTime,
+            endDate: endDateTime,
+            includeVoided,
+          });
+          break;
       }
 
       console.log(result);
@@ -192,6 +203,15 @@ function ReportsModule() {
           />
         );
 
+      case "luxury-sales":
+        return (
+          <LuxurySalesTable
+            data={reportData || []}
+            startDate={startDateTime}
+            endDate={endDateTime}
+          />
+        );
+
       default:
         return null;
     }
@@ -219,8 +239,14 @@ function ReportsModule() {
                   if (e.target.value === "stylist-services") {
                     setSelectedStylists([]);
                     setSelectedServices([]);
+                    setSelectedStylist(null);
+                  } else if (["stylist-sales", "luxury-sales", "commission-tips"].includes(e.target.value)) {
+                    setSelectedStylists([]);
+                    setSelectedServices([]);
                   } else {
                     setSelectedStylist(null);
+                    setSelectedStylists([]);
+                    setSelectedServices([]);
                   }
                   // Reset includeVoided when switching to voided-sales report
                   if (e.target.value === "voided-sales") {
@@ -240,8 +266,8 @@ function ReportsModule() {
 
         {/* Second Row - Filters based on report type */}
         <Grid container spacing={3} alignItems="center" sx={{ mb: 2 }}>
-          {/* For stylist-sales report - Single stylist selection */}
-          {["stylist-sales", "commission-tips"].includes(reportType) && (
+          {/* For stylist-sales and luxury-sales reports - Single stylist selection */}
+          {["stylist-sales", "commission-tips", "luxury-sales"].includes(reportType) && (
             <Grid item xs={12} md={6}>
               <Autocomplete
                 options={stylists}

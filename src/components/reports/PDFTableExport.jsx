@@ -5,6 +5,7 @@ import InventoryTaxTable from "./InventoryTaxTable";
 import ClientsServedTable from "./ClientsServedTable";
 import VoidedSalesTable from "./VoidedSalesTable";
 import StylistServicesTable from "./StylistServicesTable";
+import LuxurySalesTable from "./LuxurySalesTable";
 
 const PDFTableExport = ({
   data,
@@ -48,6 +49,12 @@ const PDFTableExport = ({
         endDate,
         selectedStylists,
         selectedServices,
+      );
+    } else if (reportType === "luxury-sales") {
+      tableContent = LuxurySalesTable.generatePdfContent(
+        data,
+        startDate,
+        endDate,
       );
     }
 
