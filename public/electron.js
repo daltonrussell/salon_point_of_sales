@@ -861,7 +861,7 @@ ipcMain.handle(
         const totalCharged = _.sumBy(items, "price");
 
         const taxRate = 0.0725;
-        const taxCollected = totalCharged * taxRate;
+        const taxCollected = Math.round((totalCharged * taxRate) * 100) / 100;
 
         return {
           id: sku,
@@ -1096,8 +1096,8 @@ ipcMain.handle(
             price: item.price,
             quantity: item.quantity || 1,
             subtotal: item.price * (item.quantity || 1),
-            tax: item.price * (item.quantity || 1) * taxRate,
-            total: item.price * (item.quantity || 1) * (1 + taxRate),
+            tax: Math.round((item.price * (item.quantity || 1) * taxRate) * 100) / 100,
+            total: Math.round((item.price * (item.quantity || 1) * (1 + taxRate)) * 100) / 100,
           };
         });
 

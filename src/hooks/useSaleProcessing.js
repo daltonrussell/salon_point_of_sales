@@ -110,7 +110,7 @@ export const useSaleProcessing = () => {
       (sum, item) => sum + parseFloat(item.price),
       0,
     );
-    const productTaxAmount = productSubtotal * taxRate;
+    const productTaxAmount = Math.round((productSubtotal * taxRate) * 100) / 100;
 
     return createCombinedReceiptData(
       serviceItems,
@@ -151,7 +151,7 @@ export const useSaleProcessing = () => {
         (sum, item) => sum + parseFloat(item.price),
         0,
       );
-      const luxuryServiceTax = luxuryServiceSubtotal * taxRate;
+      const luxuryServiceTax = Math.round((luxuryServiceSubtotal * taxRate) * 100) / 100;
 
       const serviceSaleData = createServiceSaleData(
         serviceItems,
@@ -187,7 +187,7 @@ export const useSaleProcessing = () => {
       (sum, item) => sum + parseFloat(item.price),
       0,
     );
-    const productTaxAmount = productSubtotal * taxRate;
+    const productTaxAmount = Math.round((productSubtotal * taxRate) * 100) / 100;
 
     // Calculate luxury service tax for receipt
     const luxuryServiceItems = serviceItems.filter((item) => item.isLuxury);
@@ -195,7 +195,7 @@ export const useSaleProcessing = () => {
       (sum, item) => sum + parseFloat(item.price),
       0,
     );
-    const luxuryServiceTax = luxuryServiceSubtotal * taxRate;
+    const luxuryServiceTax = Math.round((luxuryServiceSubtotal * taxRate) * 100) / 100;
 
     // Total tax combines product tax and luxury service tax
     const totalTaxAmount = productTaxAmount + luxuryServiceTax;

@@ -43,16 +43,7 @@ const SaleDatePicker = ({ initialDate = new Date(), onDateChange }) => {
         fullWidth
         InputLabelProps={{ shrink: true }}
       />
-      <Button
-        variant="outlined"
-        size="small"
-        onClick={handleUseCurrentDate}
-        startIcon={<RefreshIcon />}
-        sx={{ minWidth: "auto", px: 1 }}
-        title="Use current date"
-      >
-        Now
-      </Button>
+
     </Box>
   );
 };

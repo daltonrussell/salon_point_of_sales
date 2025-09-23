@@ -40,8 +40,9 @@ export const calculateSubtotals = (items) => {
  * @returns {Object} Object containing productTax and luxuryServiceTax
  */
 export const calculateTaxes = (productSubtotal, luxuryServiceSubtotal, taxRate) => {
-  const productTax = productSubtotal * taxRate;
-  const luxuryServiceTax = luxuryServiceSubtotal * taxRate;
+  // Use proper rounding to avoid floating-point precision issues
+  const productTax = Math.round((productSubtotal * taxRate) * 100) / 100;
+  const luxuryServiceTax = Math.round((luxuryServiceSubtotal * taxRate) * 100) / 100;
 
   return {
     productTax,
@@ -106,7 +107,7 @@ export const createProductSaleData = (
     (sum, item) => sum + parseFloat(item.price),
     0,
   );
-  const productTaxAmount = productSubtotal * taxRate;
+  const productTaxAmount = Math.round((productSubtotal * taxRate) * 100) / 100;
 
   return {
     ClientId: clientId,
@@ -310,20 +311,22 @@ export const splitCartItems = (cartItems, primaryAmount, secondaryAmount) => {
  * @returns {Object} Object containing productTax, luxuryServiceTax, and totalTax
  */
 export const calculateSplitPaymentTaxes = (services, products, taxRate) => {
-  // Calculate product tax
-  const productTax = products.reduce(
-    (sum, item) => sum + item.price * taxRate,
-    0,
-  );
+  // Calculate product tax with proper rounding
+  const productTax = Math.round(
+    products.reduce(
+      (sum, item) => sum + item.price * taxRate,
+      0,
+    ) * 100
+  ) / 100;
 
-  // Calculate luxury service tax
+  // Calculate luxury service tax with proper rounding
   const luxuryServiceSubtotal = services
     .filter((item) => item.isLuxury)
     .reduce((sum, item) => sum + parseFloat(item.price), 0);
-  const luxuryServiceTax = luxuryServiceSubtotal * taxRate;
+  const luxuryServiceTax = Math.round((luxuryServiceSubtotal * taxRate) * 100) / 100;
 
   // Total tax is the sum of product tax and luxury service tax
-  const totalTax = productTax + luxuryServiceTax;
+  const totalTax = Math.round((productTax + luxuryServiceTax) * 100) / 100;
 
   return {
     productTax,
