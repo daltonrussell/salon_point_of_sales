@@ -42,11 +42,8 @@ function SalesForm() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   
-  // Form state
-  const [saleDate, setSaleDate] = useState(() => {
-    const savedDate = localStorage.getItem("saleDate");
-    return savedDate ? new Date(savedDate) : new Date();
-  });
+  // Form state - always use current system date
+  const [saleDate, setSaleDate] = useState(() => new Date());
   
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -129,9 +126,6 @@ function SalesForm() {
     loadProducts();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("saleDate", saleDate.toISOString());
-  }, [saleDate]);
 
   useEffect(() => {
     const handleStorageChange = (e) => {

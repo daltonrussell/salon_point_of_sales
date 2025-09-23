@@ -42,11 +42,7 @@ function SalesForm() {
 
   const [cartItems, setCartItems] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [saleDate, setSaleDate] = useState(() => {
-    // Try to read saleDate from localStorage
-    const savedDate = localStorage.getItem("saleDate");
-    return savedDate ? new Date(savedDate) : new Date();
-  });
+  const [saleDate, setSaleDate] = useState(() => new Date());
   const [serviceKey, setServiceKey] = useState(0);
   const [productKey, setProductKey] = useState(0);
   const [serviceType, setServiceType] = useState("regular");
@@ -116,9 +112,6 @@ function SalesForm() {
     }
   }, [cashTender, subtotal, productTax, serviceTax, tipAmount, paymentMethod]);
 
-  useEffect(() => {
-    localStorage.setItem("saleDate", saleDate.toISOString());
-  }, [saleDate]);
 
   const loadProducts = async () => {
     try {
