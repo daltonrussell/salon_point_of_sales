@@ -15,7 +15,8 @@ export const useCartManagement = (taxRate) => {
     const taxes = calculateTaxes(
       subtotals.productSubtotal,
       subtotals.luxuryServiceSubtotal,
-      taxRate
+      taxRate,
+      { productTaxableSubtotal: subtotals.productTaxableSubtotal }
     );
     const totals = calculateTotals(subtotals, taxes);
 

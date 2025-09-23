@@ -246,8 +246,9 @@ function createWindow() {
     width: 1600, // Increased from 1200 to 1600 (+400px)
     height: 1000, // Increased from 800 to 1000 (+200px)
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 

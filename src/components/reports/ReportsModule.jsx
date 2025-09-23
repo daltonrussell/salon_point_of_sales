@@ -24,7 +24,7 @@ import {
 import StylistServicesTable from "./StylistServicesTable";
 import LuxurySalesTable from "./LuxurySalesTable";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 function ReportsModule() {
   // States
@@ -60,7 +60,7 @@ function ReportsModule() {
 
   const loadStylists = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-stylists", "active");
+      const data = await ipc.invoke("get-stylists", "active");
       setStylists(data);
     } catch (error) {
       console.error("Error loading stylists:", error);
@@ -69,7 +69,7 @@ function ReportsModule() {
 
   const loadServices = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-services", "active");
+      const data = await ipc.invoke("get-services", "active");
       setServices(data);
     } catch (error) {
       console.error("Error loading services:", error);
@@ -86,7 +86,7 @@ function ReportsModule() {
 
       switch (reportType) {
         case "stylist-sales":
-          result = await ipcRenderer.invoke("get-stylist-sales", {
+          result = await ipc.invoke("get-stylist-sales", {
             stylistId: selectedStylist?.id,
             startDate: startDateTime,
             endDate: endDateTime,
@@ -95,7 +95,7 @@ function ReportsModule() {
           break;
 
         case "inventory-tax":
-          result = await ipcRenderer.invoke("get-inventory-tax-report", {
+          result = await ipc.invoke("get-inventory-tax-report", {
             startDate: startDateTime,
             endDate: endDateTime,
             includeVoided,
@@ -103,7 +103,7 @@ function ReportsModule() {
           break;
 
         case "clients-served":
-          result = await ipcRenderer.invoke("get-clients-served-report", {
+          result = await ipc.invoke("get-clients-served-report", {
             startDate: startDateTime,
             endDate: endDateTime,
             includeVoided,
@@ -111,13 +111,13 @@ function ReportsModule() {
           break;
 
         case "voided-sales":
-          result = await ipcRenderer.invoke("get-voided-sales-report", {
+          result = await ipc.invoke("get-voided-sales-report", {
             startDate: startDateTime,
             endDate: endDateTime,
           });
           break;
         case "stylist-services":
-          result = await ipcRenderer.invoke("get-stylist-services", {
+          result = await ipc.invoke("get-stylist-services", {
             stylistIds:
               selectedStylists.length > 0
                 ? selectedStylists.map((s) => s.id)
@@ -133,7 +133,7 @@ function ReportsModule() {
           break;
 
         case "luxury-sales":
-          result = await ipcRenderer.invoke("get-luxury-sales-report", {
+          result = await ipc.invoke("get-luxury-sales-report", {
             stylistId: selectedStylist?.id,
             startDate: startDateTime,
             endDate: endDateTime,

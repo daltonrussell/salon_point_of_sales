@@ -31,7 +31,7 @@ import ReceiptGenerator from "../../utils/ReceiptGenerator";
 import { InfoIcon } from "lucide-react";
 import { PAYMENT_METHODS } from "../../constants/salesConstants";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 function SalesForm() {
   // Data states
@@ -115,7 +115,7 @@ function SalesForm() {
 
   const loadProducts = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-all-inventory");
+      const data = await ipc.invoke("get-all-inventory");
       setProducts(data);
     } catch (error) {
       console.error("Error loading products:", error);
@@ -182,7 +182,7 @@ function SalesForm() {
   // Data loading functions
   const loadStylists = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-stylists", "active");
+      const data = await ipc.invoke("get-stylists", "active");
       setStylists(data);
     } catch (error) {
       console.error("Error loading stylists:", error);
@@ -199,7 +199,7 @@ function SalesForm() {
   const loadServices = async () => {
     try {
       // Get only active services for the sales form
-      const data = await ipcRenderer.invoke("get-services", "active");
+      const data = await ipc.invoke("get-services", "active");
       // Split services into regular and luxury
       setServices(data.filter((service) => !service.luxury));
       setLuxuryServices(data.filter((service) => service.luxury));
@@ -210,7 +210,7 @@ function SalesForm() {
 
   const loadAllClients = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-all-clients");
+      const data = await ipc.invoke("get-all-clients");
       setCustomers(data);
     } catch (error) {
       console.error("Error loading clients:", error);
@@ -489,7 +489,7 @@ function SalesForm() {
       tipAmount,
     );
 
-    await ipcRenderer.invoke("create-sale", saleData);
+    await ipc.invoke("create-sale", saleData);
     return saleData;
   };
 
@@ -512,7 +512,7 @@ function SalesForm() {
       tipAmount,
     );
 
-    await ipcRenderer.invoke("create-sale", saleData);
+    await ipc.invoke("create-sale", saleData);
     return saleData;
   };
 
@@ -538,7 +538,7 @@ function SalesForm() {
         saleDate,
         serviceTax, // Add serviceTax here
       );
-      await ipcRenderer.invoke("create-sale", serviceSaleData);
+      await ipc.invoke("create-sale", serviceSaleData);
     }
 
     // Create and submit product sale
@@ -551,7 +551,7 @@ function SalesForm() {
         saleDate,
         taxRate,
       );
-      await ipcRenderer.invoke("create-sale", productSaleData);
+      await ipc.invoke("create-sale", productSaleData);
     }
 
     // Create combined receipt data
@@ -616,7 +616,7 @@ function SalesForm() {
         saleDate,
         luxuryServiceTax, // Pass the calculated luxury service tax
       );
-      await ipcRenderer.invoke("create-sale", serviceSaleData);
+      await ipc.invoke("create-sale", serviceSaleData);
     }
 
     // Create product sale
@@ -629,7 +629,7 @@ function SalesForm() {
         saleDate,
         taxRate,
       );
-      await ipcRenderer.invoke("create-sale", productSaleData);
+      await ipc.invoke("create-sale", productSaleData);
     }
 
     // Create combined receipt data
@@ -815,8 +815,8 @@ function SalesForm() {
     };
 
     // Submit both sales
-    await ipcRenderer.invoke("create-sale", saleData1);
-    await ipcRenderer.invoke("create-sale", saleData2);
+    await ipc.invoke("create-sale", saleData1);
+    await ipc.invoke("create-sale", saleData2);
 
     // Return both sale data objects for receipt
     return [saleData1, saleData2];
@@ -915,7 +915,7 @@ function SalesForm() {
             saleDate: saleDate,
           };
 
-          await ipcRenderer.invoke("create-sale", saleData);
+          await ipc.invoke("create-sale", saleData);
           saleResults = saleData;
         }
       }

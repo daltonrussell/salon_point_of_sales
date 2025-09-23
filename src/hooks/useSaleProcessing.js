@@ -11,7 +11,7 @@ import {
   calculateSplitPaymentAmounts
 } from '../utils/salesCalculations';
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 export const useSaleProcessing = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,7 +35,7 @@ export const useSaleProcessing = () => {
       tipAmount,
     );
 
-    await ipcRenderer.invoke("create-sale", saleData);
+    await ipc.invoke("create-sale", saleData);
     return saleData;
   }, []);
 
@@ -58,7 +58,7 @@ export const useSaleProcessing = () => {
       tipAmount,
     );
 
-    await ipcRenderer.invoke("create-sale", saleData);
+    await ipc.invoke("create-sale", saleData);
     return saleData;
   }, []);
 
@@ -84,7 +84,7 @@ export const useSaleProcessing = () => {
         saleDate,
         serviceTax,
       );
-      await ipcRenderer.invoke("create-sale", serviceSaleData);
+      await ipc.invoke("create-sale", serviceSaleData);
     }
 
     // Create and submit product sale
@@ -97,7 +97,7 @@ export const useSaleProcessing = () => {
         saleDate,
         taxRate,
       );
-      await ipcRenderer.invoke("create-sale", productSaleData);
+      await ipc.invoke("create-sale", productSaleData);
     }
 
     // Create combined receipt data
@@ -161,7 +161,7 @@ export const useSaleProcessing = () => {
         saleDate,
         luxuryServiceTax,
       );
-      await ipcRenderer.invoke("create-sale", serviceSaleData);
+      await ipc.invoke("create-sale", serviceSaleData);
     }
 
     // Create product sale
@@ -174,7 +174,7 @@ export const useSaleProcessing = () => {
         saleDate,
         taxRate,
       );
-      await ipcRenderer.invoke("create-sale", productSaleData);
+      await ipc.invoke("create-sale", productSaleData);
     }
 
     // Create combined receipt data
@@ -301,8 +301,8 @@ export const useSaleProcessing = () => {
     };
 
     // Submit both sales
-    await ipcRenderer.invoke("create-sale", saleData1);
-    await ipcRenderer.invoke("create-sale", saleData2);
+    await ipc.invoke("create-sale", saleData1);
+    await ipc.invoke("create-sale", saleData2);
 
     // Return both sale data objects for receipt
     return [saleData1, saleData2];
@@ -311,7 +311,7 @@ export const useSaleProcessing = () => {
   const processSale = useCallback(async (saleData) => {
     setIsProcessing(true);
     try {
-      const result = await ipcRenderer.invoke("create-sale", saleData);
+      const result = await ipc.invoke("create-sale", saleData);
       return result;
     } finally {
       setIsProcessing(false);

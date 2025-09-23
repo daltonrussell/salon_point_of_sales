@@ -32,7 +32,7 @@ import { useCartManagement } from "../../hooks/useCartManagement";
 import { usePaymentManagement, useChangeCalculation } from "../../hooks/usePaymentManagement";
 import { useSaleProcessing } from "../../hooks/useSaleProcessing";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 function SalesForm() {
   // Data states
@@ -168,7 +168,7 @@ function SalesForm() {
   // Data loading functions
   const loadStylists = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-stylists", "active");
+      const data = await ipc.invoke("get-stylists", "active");
       setStylists(data);
     } catch (error) {
       console.error("Error loading stylists:", error);
@@ -177,7 +177,7 @@ function SalesForm() {
 
   const loadServices = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-services", "active");
+      const data = await ipc.invoke("get-services", "active");
       setServices(data.filter((service) => !service.luxury));
       setLuxuryServices(data.filter((service) => service.luxury));
     } catch (error) {
@@ -187,7 +187,7 @@ function SalesForm() {
 
   const loadAllClients = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-all-clients");
+      const data = await ipc.invoke("get-all-clients");
       setCustomers(data);
     } catch (error) {
       console.error("Error loading clients:", error);
@@ -196,7 +196,7 @@ function SalesForm() {
 
   const loadProducts = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-all-inventory");
+      const data = await ipc.invoke("get-all-inventory");
       setProducts(data);
     } catch (error) {
       console.error("Error loading products:", error);
@@ -416,7 +416,7 @@ function SalesForm() {
             saleDate: saleDate,
           };
 
-          await ipcRenderer.invoke("create-sale", saleData);
+          await ipc.invoke("create-sale", saleData);
           saleResults = saleData;
         }
       }

@@ -12,6 +12,7 @@ export const calculateSubtotals = (items) => {
   let serviceSubtotal = 0;
   let luxuryServiceSubtotal = 0;
   let productSubtotal = 0;
+  let productTaxableSubtotal = 0; // excludes back bar items from taxation
 
   items.forEach((item) => {
     if (item.type === "service") {
@@ -21,7 +22,11 @@ export const calculateSubtotals = (items) => {
         serviceSubtotal += parseFloat(item.service.price);
       }
     } else if (item.type === "product") {
-      productSubtotal += parseFloat(item.price);
+      const price = parseFloat(item.price);
+      productSubtotal += price;
+      if (!item.isBackBar) {
+        productTaxableSubtotal += price;
+      }
     }
   });
 
@@ -29,6 +34,7 @@ export const calculateSubtotals = (items) => {
     serviceSubtotal,
     luxuryServiceSubtotal,
     productSubtotal,
+    productTaxableSubtotal,
   };
 };
 
@@ -39,9 +45,11 @@ export const calculateSubtotals = (items) => {
  * @param {number} taxRate - Tax rate as decimal (e.g., 0.08 for 8%)
  * @returns {Object} Object containing productTax and luxuryServiceTax
  */
-export const calculateTaxes = (productSubtotal, luxuryServiceSubtotal, taxRate) => {
+export const calculateTaxes = (productSubtotal, luxuryServiceSubtotal, taxRate, options = {}) => {
+  const { productTaxableSubtotal } = options;
   // Use proper rounding to avoid floating-point precision issues
-  const productTax = Math.round((productSubtotal * taxRate) * 100) / 100;
+  const productBase = typeof productTaxableSubtotal === 'number' ? productTaxableSubtotal : productSubtotal;
+  const productTax = Math.round((productBase * taxRate) * 100) / 100;
   const luxuryServiceTax = Math.round((luxuryServiceSubtotal * taxRate) * 100) / 100;
 
   return {

@@ -37,7 +37,7 @@ import {
   Edit as EditIcon,
 } from "@mui/icons-material";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 const SaleCard = ({ sale, onVoid, disabled }) => {
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
@@ -175,7 +175,7 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick, onEditClick }) =>
         const startDate = new Date();
         startDate.setFullYear(startDate.getFullYear() - 1);
 
-        const customerSales = await ipcRenderer.invoke("get-customer-sales", {
+        const customerSales = await ipc.invoke("get-customer-sales", {
           clientId: customer.id,
           startDate: startDate.toISOString(),
           endDate,
@@ -200,7 +200,7 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick, onEditClick }) =>
   const handleVoidSale = async (saleId, voidReason) => {
     setProcessingVoid(true);
     try {
-      await ipcRenderer.invoke("void-sale", { saleId, voidReason });
+      await ipc.invoke("void-sale", { saleId, voidReason });
 
       // Update the local state to reflect the voided sale
       setSales((prevSales) =>
@@ -311,7 +311,7 @@ const CustomersPage = () => {
 
   const loadCustomers = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-all-clients");
+      const data = await ipc.invoke("get-all-clients");
       setCustomers(data);
     } catch (error) {
       console.error("Error loading customers:", error);
@@ -333,7 +333,7 @@ const CustomersPage = () => {
 
     try {
       if (term) {
-        const results = await ipcRenderer.invoke("search-clients", term);
+        const results = await ipc.invoke("search-clients", term);
         setCustomers(results);
       } else {
         loadCustomers();
@@ -369,7 +369,7 @@ const CustomersPage = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      const result = await ipcRenderer.invoke("delete-client", {
+      const result = await ipc.invoke("delete-client", {
         id: clientToDelete.id,
       });
 

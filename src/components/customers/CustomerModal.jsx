@@ -8,7 +8,7 @@ import {
   Button,
   Grid,
 } from '@mui/material';
-const { ipcRenderer } = window.require('electron');
+const ipc = window.api;
 
 function CustomerModal({ open, onClose, onCustomerAdded, onCustomerUpdated, customerToEdit }) {
   const [formData, setFormData] = useState({
@@ -52,14 +52,14 @@ function CustomerModal({ open, onClose, onCustomerAdded, onCustomerUpdated, cust
     try {
       if (customerToEdit) {
         // Update existing customer
-        const updatedCustomer = await ipcRenderer.invoke('update-client', {
+        const updatedCustomer = await ipc.invoke('update-client', {
           id: customerToEdit.id,
           ...formData
         });
         onCustomerUpdated(updatedCustomer);
       } else {
         // Create new customer
-        const newCustomer = await ipcRenderer.invoke('create-client', formData);
+        const newCustomer = await ipc.invoke('create-client', formData);
         onCustomerAdded(newCustomer);
       }
       onClose();
