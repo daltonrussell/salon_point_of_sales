@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -10,13 +10,34 @@ import {
 } from '@mui/material';
 const { ipcRenderer } = window.require('electron');
 
-function CustomerModal({ open, onClose, onCustomerAdded }) {
+function CustomerModal({ open, onClose, onCustomerAdded, onCustomerUpdated, customerToEdit }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     phone: '',
     address: '',
   });
+
+  // Reset form when modal opens/closes or when customerToEdit changes
+  useEffect(() => {
+    if (open) {
+      if (customerToEdit) {
+        setFormData({
+          firstName: customerToEdit.firstName || '',
+          lastName: customerToEdit.lastName || '',
+          phone: customerToEdit.phone || '',
+          address: customerToEdit.address || '',
+        });
+      } else {
+        setFormData({
+          firstName: '',
+          lastName: '',
+          phone: '',
+          address: '',
+        });
+      }
+    }
+  }, [open, customerToEdit]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -29,23 +50,29 @@ function CustomerModal({ open, onClose, onCustomerAdded }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const newCustomer = await ipcRenderer.invoke('create-client', formData);
-      onCustomerAdded(newCustomer);
+      if (customerToEdit) {
+        // Update existing customer
+        const updatedCustomer = await ipcRenderer.invoke('update-client', {
+          id: customerToEdit.id,
+          ...formData
+        });
+        onCustomerUpdated(updatedCustomer);
+      } else {
+        // Create new customer
+        const newCustomer = await ipcRenderer.invoke('create-client', formData);
+        onCustomerAdded(newCustomer);
+      }
       onClose();
-      setFormData({
-        firstName: '',
-        lastName: '',
-        phone: '',
-        address: '',
-      });
     } catch (error) {
-      console.error('Error creating customer:', error);
+      console.error('Error saving customer:', error);
     }
   };
 
+  const isEditMode = !!customerToEdit;
+
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Add New Customer</DialogTitle>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{isEditMode ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
           <Grid container spacing={2}>
@@ -94,7 +121,7 @@ function CustomerModal({ open, onClose, onCustomerAdded }) {
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="contained" color="primary">
-            Add Customer
+            {isEditMode ? 'Update Customer' : 'Add Customer'}
           </Button>
         </DialogActions>
       </form>

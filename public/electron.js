@@ -463,6 +463,28 @@ ipcMain.handle("get-client", async (event, id) => {
   }
 });
 
+ipcMain.handle("update-client", async (event, { id, ...updateData }) => {
+  try {
+    const client = db.get("clients").find({ id });
+    if (!client.value()) {
+      throw new Error("Client not found");
+    }
+
+    const updatedClient = {
+      ...client.value(),
+      ...updateData,
+      updatedAt: new Date(),
+    };
+
+    client.assign(updatedClient).write();
+    log(`Updated client: ${updatedClient.firstName} ${updatedClient.lastName}`);
+    return updatedClient;
+  } catch (error) {
+    log("Error updating client:", error);
+    throw error;
+  }
+});
+
 // Service Handlers
 ipcMain.handle("create-service", async (event, serviceData) => {
   try {

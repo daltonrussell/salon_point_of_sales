@@ -65,6 +65,7 @@ function SalesForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [completedSaleData, setCompletedSaleData] = useState(null);
+  const [customerToEdit, setCustomerToEdit] = useState(null);
   
   // Settings from localStorage
   const [productStylistId, setProductStylistId] = useState(() => {
@@ -218,6 +219,31 @@ function SalesForm() {
       ),
     );
     setSelectedCustomer(newCustomer);
+  };
+
+  const handleCustomerUpdated = (updatedCustomer) => {
+    if (!updatedCustomer || !updatedCustomer.lastName || !updatedCustomer.firstName) {
+      console.error("Invalid customer data:", updatedCustomer);
+      return;
+    }
+
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c)).sort(
+        (a, b) => {
+          if (!a || !b) return 0;
+          const lastNameCompare = a.lastName.localeCompare(b.lastName);
+          return lastNameCompare || a.firstName.localeCompare(b.firstName);
+        },
+      ),
+    );
+    setSelectedCustomer(updatedCustomer);
+  };
+
+  const handleEditCustomer = () => {
+    if (selectedCustomer) {
+      setCustomerToEdit(selectedCustomer);
+      setIsModalOpen(true);
+    }
   };
 
   // Helper function to find a stylist by ID
@@ -674,10 +700,23 @@ function SalesForm() {
               />
               <Button
                 variant="contained"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setCustomerToEdit(null);
+                  setIsModalOpen(true);
+                }}
                 sx={{ minWidth: "auto", px: 2 }}
+                title="Add New Customer"
               >
                 +
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleEditCustomer}
+                disabled={!selectedCustomer}
+                sx={{ minWidth: "auto", px: 2 }}
+                title="Edit Selected Customer"
+              >
+                ✏️
               </Button>
             </Box>
           </Box>
@@ -749,8 +788,13 @@ function SalesForm() {
 
       <CustomerModal
         open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setCustomerToEdit(null);
+        }}
         onCustomerAdded={handleNewCustomer}
+        onCustomerUpdated={handleCustomerUpdated}
+        customerToEdit={customerToEdit}
       />
       
       <Dialog

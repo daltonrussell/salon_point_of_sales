@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import CustomerModal from "../components/customers/CustomerModal";
 import {
   Box,
   TextField,
@@ -33,6 +34,7 @@ import {
   Person as PersonIcon,
   Cancel as CancelIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 
 const { ipcRenderer } = window.require("electron");
@@ -157,7 +159,7 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
 };
 
 // Row component with expandable details
-const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
+const CustomerRow = ({ customer, onExpandError, onDeleteClick, onEditClick }) => {
   const [open, setOpen] = useState(false);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -235,14 +237,24 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
           {new Date(customer.createdAt).toLocaleDateString()}
         </TableCell>
         <TableCell>
-          <IconButton
-            color="error"
-            size="small"
-            onClick={() => onDeleteClick(customer)}
-            aria-label="delete customer"
-          >
-            <DeleteIcon />
-          </IconButton>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={() => onEditClick(customer)}
+              aria-label="edit customer"
+            >
+              <EditIcon />
+            </IconButton>
+            <IconButton
+              color="error"
+              size="small"
+              onClick={() => onDeleteClick(customer)}
+              aria-label="delete customer"
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Box>
         </TableCell>
       </TableRow>
       <TableRow>
@@ -290,6 +302,8 @@ const CustomersPage = () => {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
   const [deleteWarningInfo, setDeleteWarningInfo] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [customerToEdit, setCustomerToEdit] = useState(null);
 
   useEffect(() => {
     loadCustomers();
@@ -337,6 +351,20 @@ const CustomersPage = () => {
   const handleDeleteClick = (client) => {
     setClientToDelete(client);
     setDeleteDialogOpen(true);
+  };
+
+  const handleEditClick = (customer) => {
+    setCustomerToEdit(customer);
+    setEditModalOpen(true);
+  };
+
+  const handleCustomerUpdated = (updatedCustomer) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
+    );
+    setEditModalOpen(false);
+    setCustomerToEdit(null);
+    showSnackbar("Customer updated successfully", "success");
   };
 
   const handleDeleteConfirm = async () => {
@@ -425,6 +453,7 @@ const CustomersPage = () => {
                   customer={customer}
                   onExpandError={(msg) => showSnackbar(msg, "error")}
                   onDeleteClick={handleDeleteClick}
+                  onEditClick={handleEditClick}
                 />
               ))
             )}
@@ -474,6 +503,16 @@ const CustomersPage = () => {
           <Button onClick={() => setDeleteWarningOpen(false)}>OK</Button>
         </DialogActions>
       </Dialog>
+
+      <CustomerModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setCustomerToEdit(null);
+        }}
+        onCustomerUpdated={handleCustomerUpdated}
+        customerToEdit={customerToEdit}
+      />
 
       <Snackbar
         open={snackbar.open}
