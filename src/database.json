@@ -47,12 +47,12 @@
     {
       "id": "1677974400000",
       "firstName": "Jessica",
-      "lastName": "Brown",
+      "lastName": "Brown2",
       "phone": "555-567-8901",
       "email": "jessica.brown@example.com",
       "address": "321 Elm St, Anytown, CA 94123",
       "createdAt": "2023-03-05T10:00:00.000Z",
-      "updatedAt": "2023-03-05T10:00:00.000Z",
+      "updatedAt": "2025-09-23T02:13:05.103Z",
       "showInUI": true
     },
     {
@@ -236,10 +236,10 @@
       "manufacturer": "ThermalGuard",
       "purchasePrice": 10.25,
       "salePrice": 19.99,
-      "quantity": 6,
+      "quantity": 5,
       "sku": "HP-SP-001",
       "createdAt": "2022-12-04T10:00:00.000Z",
-      "updatedAt": "2025-03-30T14:54:11.867Z",
+      "updatedAt": "2025-09-23T01:23:45.071Z",
       "showInUI": true
     },
     {
@@ -260,10 +260,10 @@
       "manufacturer": "LuxHair",
       "purchasePrice": 15,
       "salePrice": 32.99,
-      "quantity": 23,
+      "quantity": 22,
       "sku": "HM-DR-001",
       "createdAt": "2022-12-06T10:00:00.000Z",
-      "updatedAt": "2025-03-23T20:07:20.760Z",
+      "updatedAt": "2025-09-23T01:17:38.105Z",
       "showInUI": true
     }
   ],
@@ -759,6 +759,45 @@
       "saleDate": "2025-03-30T16:00:00.000Z",
       "createdAt": "2025-03-30T14:55:01.332Z",
       "updatedAt": "2025-03-30T14:55:01.332Z"
+    },
+    {
+      "id": "1758590258104",
+      "ClientId": "1677974400000",
+      "StylistId": "1675296000000",
+      "subtotal": 217.99,
+      "tax": 9.641774999999999,
+      "tip": 0,
+      "total": 227.631775,
+      "paymentMethod": "Debit Card",
+      "saleDate": "2025-09-22T23:54:23.078Z",
+      "createdAt": "2025-09-23T01:17:38.104Z",
+      "updatedAt": "2025-09-23T01:17:38.104Z"
+    },
+    {
+      "id": "1758590625069",
+      "ClientId": "1677715200000",
+      "StylistId": "1675209600000",
+      "subtotal": 185,
+      "tax": 7.249999999999999,
+      "tip": 0,
+      "total": 192.25,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-09-22T23:54:23.078Z",
+      "createdAt": "2025-09-23T01:23:45.069Z",
+      "updatedAt": "2025-09-23T01:23:45.069Z"
+    },
+    {
+      "id": "1758590625071",
+      "ClientId": "1677715200000",
+      "StylistId": "1742168485278",
+      "subtotal": 19.99,
+      "tax": 1.4492749999999999,
+      "tip": 0,
+      "total": 21.439275,
+      "paymentMethod": "Credit Card",
+      "saleDate": "2025-09-22T23:54:23.078Z",
+      "createdAt": "2025-09-23T01:23:45.071Z",
+      "updatedAt": "2025-09-23T01:23:45.071Z"
     }
   ],
   "saleItems": [
@@ -1320,6 +1359,66 @@
       "quantity": 1,
       "createdAt": "2025-03-30T14:55:01.332Z",
       "updatedAt": "2025-03-30T14:55:01.332Z"
+    },
+    {
+      "id": "1758590258104",
+      "SaleId": "1758590258104",
+      "ServiceId": "1742757914339",
+      "price": 100,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-09-23T01:17:38.104Z",
+      "updatedAt": "2025-09-23T01:17:38.104Z"
+    },
+    {
+      "id": "1758590258104",
+      "SaleId": "1758590258104",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-09-23T01:17:38.104Z",
+      "updatedAt": "2025-09-23T01:17:38.104Z"
+    },
+    {
+      "id": "1758590258107",
+      "SaleId": "1758590258104",
+      "InventoryId": "1670284800000",
+      "price": 32.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-09-23T01:17:38.107Z",
+      "updatedAt": "2025-09-23T01:17:38.107Z"
+    },
+    {
+      "id": "1758590625069",
+      "SaleId": "1758590625069",
+      "ServiceId": "1672704000000",
+      "price": 85,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-09-23T01:23:45.069Z",
+      "updatedAt": "2025-09-23T01:23:45.069Z"
+    },
+    {
+      "id": "1758590625069",
+      "SaleId": "1758590625069",
+      "ServiceId": "1742757914339",
+      "price": 100,
+      "itemType": "service",
+      "quantity": 1,
+      "createdAt": "2025-09-23T01:23:45.069Z",
+      "updatedAt": "2025-09-23T01:23:45.069Z"
+    },
+    {
+      "id": "1758590625072",
+      "SaleId": "1758590625071",
+      "InventoryId": "1670112000000",
+      "price": 19.99,
+      "quantity": 1,
+      "itemType": "product",
+      "createdAt": "2025-09-23T01:23:45.072Z",
+      "updatedAt": "2025-09-23T01:23:45.072Z"
     }
   ]
 }

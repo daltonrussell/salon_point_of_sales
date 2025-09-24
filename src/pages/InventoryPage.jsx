@@ -39,7 +39,7 @@ import {
   Print as PrintIcon,
 } from "@mui/icons-material";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 const InventoryPage = () => {
   const [inventory, setInventory] = useState([]);
@@ -256,7 +256,7 @@ const InventoryPage = () => {
 
   const loadInventory = async () => {
     try {
-      const items = await ipcRenderer.invoke("get-all-inventory");
+      const items = await ipc.invoke("get-all-inventory");
       setInventory(items);
     } catch (error) {
       console.error("Error loading inventory:", error);
@@ -278,7 +278,7 @@ const InventoryPage = () => {
 
     try {
       if (term) {
-        const results = await ipcRenderer.invoke("search-inventory", term);
+        const results = await ipc.invoke("search-inventory", term);
         setInventory(results);
       } else {
         loadInventory();
@@ -296,7 +296,7 @@ const InventoryPage = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      const result = await ipcRenderer.invoke("hide-inventory", {
+      const result = await ipc.invoke("hide-inventory", {
         id: itemToDelete.id,
       });
 
@@ -327,7 +327,7 @@ const InventoryPage = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke("update-inventory", editItem);
+      await ipc.invoke("update-inventory", editItem);
       setIsEditDialogOpen(false);
       loadInventory();
       showSnackbar("Inventory item updated successfully");
@@ -369,7 +369,7 @@ const InventoryPage = () => {
 
     try {
       // Try to find an exact match by SKU first
-      const results = await ipcRenderer.invoke(
+      const results = await ipc.invoke(
         "search-inventory-by-sku",
         searchSku.trim(),
       );
@@ -423,7 +423,7 @@ const InventoryPage = () => {
         quantity: parseInt(newItem.quantity, 10) || 0,
       };
 
-      await ipcRenderer.invoke("create-inventory", cleanedItem);
+      await ipc.invoke("create-inventory", cleanedItem);
 
       showSnackbar("Product added successfully!");
       setIsReceiveDialogOpen(false);
@@ -447,7 +447,7 @@ const InventoryPage = () => {
         return;
       }
 
-      await ipcRenderer.invoke("update-inventory-quantity", {
+      await ipc.invoke("update-inventory-quantity", {
         sku: searchResult.sku,
         quantity: parseInt(receiveQuantity, 10),
       });

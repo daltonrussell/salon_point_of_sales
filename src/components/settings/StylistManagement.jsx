@@ -22,7 +22,7 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 function StylistManagement() {
   const [formData, setFormData] = useState({
@@ -45,7 +45,7 @@ function StylistManagement() {
 
   const loadStylists = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-stylists", statusFilter);
+      const data = await ipc.invoke("get-stylists", statusFilter);
       setStylists(data);
     } catch (error) {
       console.error("Error loading stylists:", error);
@@ -66,7 +66,7 @@ function StylistManagement() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      await ipcRenderer.invoke("update-stylist-status", {
+      await ipc.invoke("update-stylist-status", {
         id,
         status: newStatus,
       });
@@ -87,7 +87,7 @@ function StylistManagement() {
 
     if (window.confirm("Are you sure you want to delete this stylist?")) {
       try {
-        await ipcRenderer.invoke("delete-stylist", { id });
+        await ipc.invoke("delete-stylist", { id });
         loadStylists();
       } catch (error) {
         console.error("Error deleting stylist:", error);
@@ -98,7 +98,7 @@ function StylistManagement() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      await ipcRenderer.invoke("create-stylist", formData);
+      await ipc.invoke("create-stylist", formData);
       setFormData({
         firstName: "",
         lastName: "",

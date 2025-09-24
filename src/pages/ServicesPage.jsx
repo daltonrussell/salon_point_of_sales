@@ -33,7 +33,7 @@ import {
   Edit as EditIcon,
 } from "@mui/icons-material";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 const ServicesPage = () => {
   const [services, setServices] = useState([]);
@@ -69,7 +69,7 @@ const ServicesPage = () => {
 
   const loadServices = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-services", "all");
+      const data = await ipc.invoke("get-services", "all");
       setServices(data);
     } catch (error) {
       console.error("Error loading services:", error);
@@ -126,7 +126,7 @@ const ServicesPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke("create-service", {
+      await ipc.invoke("create-service", {
         ...newService,
         price: Number(newService.price),
       });
@@ -148,7 +148,7 @@ const ServicesPage = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await ipcRenderer.invoke("update-service", {
+      await ipc.invoke("update-service", {
         ...editService,
         price: Number(editService.price),
       });

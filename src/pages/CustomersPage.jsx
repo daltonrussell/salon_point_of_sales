@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import CustomerModal from "../components/customers/CustomerModal";
 import {
   Box,
   TextField,
@@ -33,9 +34,10 @@ import {
   Person as PersonIcon,
   Cancel as CancelIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 const SaleCard = ({ sale, onVoid, disabled }) => {
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
@@ -157,7 +159,7 @@ const SaleCard = ({ sale, onVoid, disabled }) => {
 };
 
 // Row component with expandable details
-const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
+const CustomerRow = ({ customer, onExpandError, onDeleteClick, onEditClick }) => {
   const [open, setOpen] = useState(false);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -173,7 +175,7 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
         const startDate = new Date();
         startDate.setFullYear(startDate.getFullYear() - 1);
 
-        const customerSales = await ipcRenderer.invoke("get-customer-sales", {
+        const customerSales = await ipc.invoke("get-customer-sales", {
           clientId: customer.id,
           startDate: startDate.toISOString(),
           endDate,
@@ -198,7 +200,7 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
   const handleVoidSale = async (saleId, voidReason) => {
     setProcessingVoid(true);
     try {
-      await ipcRenderer.invoke("void-sale", { saleId, voidReason });
+      await ipc.invoke("void-sale", { saleId, voidReason });
 
       // Update the local state to reflect the voided sale
       setSales((prevSales) =>
@@ -235,14 +237,24 @@ const CustomerRow = ({ customer, onExpandError, onDeleteClick }) => {
           {new Date(customer.createdAt).toLocaleDateString()}
         </TableCell>
         <TableCell>
-          <IconButton
-            color="error"
-            size="small"
-            onClick={() => onDeleteClick(customer)}
-            aria-label="delete customer"
-          >
-            <DeleteIcon />
-          </IconButton>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={() => onEditClick(customer)}
+              aria-label="edit customer"
+            >
+              <EditIcon />
+            </IconButton>
+            <IconButton
+              color="error"
+              size="small"
+              onClick={() => onDeleteClick(customer)}
+              aria-label="delete customer"
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Box>
         </TableCell>
       </TableRow>
       <TableRow>
@@ -290,6 +302,8 @@ const CustomersPage = () => {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
   const [deleteWarningInfo, setDeleteWarningInfo] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [customerToEdit, setCustomerToEdit] = useState(null);
 
   useEffect(() => {
     loadCustomers();
@@ -297,7 +311,7 @@ const CustomersPage = () => {
 
   const loadCustomers = async () => {
     try {
-      const data = await ipcRenderer.invoke("get-all-clients");
+      const data = await ipc.invoke("get-all-clients");
       setCustomers(data);
     } catch (error) {
       console.error("Error loading customers:", error);
@@ -319,7 +333,7 @@ const CustomersPage = () => {
 
     try {
       if (term) {
-        const results = await ipcRenderer.invoke("search-clients", term);
+        const results = await ipc.invoke("search-clients", term);
         setCustomers(results);
       } else {
         loadCustomers();
@@ -339,9 +353,23 @@ const CustomersPage = () => {
     setDeleteDialogOpen(true);
   };
 
+  const handleEditClick = (customer) => {
+    setCustomerToEdit(customer);
+    setEditModalOpen(true);
+  };
+
+  const handleCustomerUpdated = (updatedCustomer) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
+    );
+    setEditModalOpen(false);
+    setCustomerToEdit(null);
+    showSnackbar("Customer updated successfully", "success");
+  };
+
   const handleDeleteConfirm = async () => {
     try {
-      const result = await ipcRenderer.invoke("delete-client", {
+      const result = await ipc.invoke("delete-client", {
         id: clientToDelete.id,
       });
 
@@ -425,6 +453,7 @@ const CustomersPage = () => {
                   customer={customer}
                   onExpandError={(msg) => showSnackbar(msg, "error")}
                   onDeleteClick={handleDeleteClick}
+                  onEditClick={handleEditClick}
                 />
               ))
             )}
@@ -474,6 +503,16 @@ const CustomersPage = () => {
           <Button onClick={() => setDeleteWarningOpen(false)}>OK</Button>
         </DialogActions>
       </Dialog>
+
+      <CustomerModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setCustomerToEdit(null);
+        }}
+        onCustomerUpdated={handleCustomerUpdated}
+        customerToEdit={customerToEdit}
+      />
 
       <Snackbar
         open={snackbar.open}
