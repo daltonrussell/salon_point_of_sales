@@ -246,8 +246,9 @@ function createWindow() {
     width: 1600, // Increased from 1200 to 1600 (+400px)
     height: 1000, // Increased from 800 to 1000 (+200px)
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -459,6 +460,28 @@ ipcMain.handle("get-client", async (event, id) => {
     return db.get("clients").find({ id }).value();
   } catch (error) {
     log("Error fetching client:", error);
+    throw error;
+  }
+});
+
+ipcMain.handle("update-client", async (event, { id, ...updateData }) => {
+  try {
+    const client = db.get("clients").find({ id });
+    if (!client.value()) {
+      throw new Error("Client not found");
+    }
+
+    const updatedClient = {
+      ...client.value(),
+      ...updateData,
+      updatedAt: new Date(),
+    };
+
+    client.assign(updatedClient).write();
+    log(`Updated client: ${updatedClient.firstName} ${updatedClient.lastName}`);
+    return updatedClient;
+  } catch (error) {
+    log("Error updating client:", error);
     throw error;
   }
 });
@@ -861,7 +884,7 @@ ipcMain.handle(
         const totalCharged = _.sumBy(items, "price");
 
         const taxRate = 0.0725;
-        const taxCollected = totalCharged * taxRate;
+        const taxCollected = Math.round((totalCharged * taxRate) * 100) / 100;
 
         return {
           id: sku,
@@ -1096,8 +1119,8 @@ ipcMain.handle(
             price: item.price,
             quantity: item.quantity || 1,
             subtotal: item.price * (item.quantity || 1),
-            tax: item.price * (item.quantity || 1) * taxRate,
-            total: item.price * (item.quantity || 1) * (1 + taxRate),
+            tax: Math.round((item.price * (item.quantity || 1) * taxRate) * 100) / 100,
+            total: Math.round((item.price * (item.quantity || 1) * (1 + taxRate)) * 100) / 100,
           };
         });
 

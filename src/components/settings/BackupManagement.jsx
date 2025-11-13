@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { CloudUpload, Backup, Info } from "@mui/icons-material";
 
-const { ipcRenderer } = window.require("electron");
+const ipc = window.api;
 
 const BackupManagement = () => {
   const [backupInfo, setBackupInfo] = useState(null);
@@ -24,7 +24,7 @@ const BackupManagement = () => {
 
   const loadBackupInfo = async () => {
     try {
-      const info = await ipcRenderer.invoke("get-backup-info");
+      const info = await ipc.invoke("get-backup-info");
       setBackupInfo(info);
     } catch (error) {
       console.error("Error loading backup info:", error);
@@ -37,7 +37,7 @@ const BackupManagement = () => {
     setMessage(null);
     
     try {
-      const result = await ipcRenderer.invoke("create-manual-backup");
+      const result = await ipc.invoke("create-manual-backup");
       
       if (result.success) {
         setMessage({ 

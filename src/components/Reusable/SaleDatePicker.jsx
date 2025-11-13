@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { TextField } from "@mui/material";
+import { TextField, Button, Box } from "@mui/material";
+import { Refresh as RefreshIcon } from "@mui/icons-material";
 
 const SaleDatePicker = ({ initialDate = new Date(), onDateChange }) => {
   // Format the initial date to YYYY-MM-DD format for the input
@@ -35,15 +36,28 @@ const SaleDatePicker = ({ initialDate = new Date(), onDateChange }) => {
     }
   };
 
+  const handleUseCurrentDate = () => {
+    const currentDate = new Date();
+    const formattedDate = formatDate(currentDate);
+    setSaleDate(formattedDate);
+
+    if (onDateChange) {
+      onDateChange(currentDate);
+    }
+  };
+
   return (
-    <TextField
-      label="Sale Date"
-      type="date"
-      value={saleDate}
-      onChange={handleDateChange}
-      fullWidth
-      InputLabelProps={{ shrink: true }}
-    />
+    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+      <TextField
+        label="Sale Date"
+        type="date"
+        value={saleDate}
+        onChange={handleDateChange}
+        fullWidth
+        InputLabelProps={{ shrink: true }}
+      />
+
+    </Box>
   );
 };
 
