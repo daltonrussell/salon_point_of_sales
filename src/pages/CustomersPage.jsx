@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import CustomerModal from "../components/customers/CustomerModal";
 import {
   Box,
@@ -18,7 +18,6 @@ import {
   Typography,
   Chip,
   Divider,
-  Tooltip,
   Button,
   Dialog,
   DialogActions,
@@ -305,19 +304,18 @@ const CustomersPage = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState(null);
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       const data = await ipc.invoke("get-all-clients");
       setCustomers(data);
     } catch (error) {
       console.error("Error loading customers:", error);
-      showSnackbar("Error loading customers", "error");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({

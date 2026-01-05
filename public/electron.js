@@ -739,6 +739,7 @@ ipcMain.handle(
           saleDate: sale.saleDate,
           subtotal: sale.subtotal,
           tax: sale.tax,
+          tip: sale.tip || 0,
           total: sale.total,
           paymentMethod: sale.paymentMethod,
           isVoided: !!sale.isVoided,
@@ -963,7 +964,7 @@ ipcMain.handle(
             giftCard: sale.paymentMethod === "Gift Card" ? sale.total : 0,
             coupon: 0,
             points: 0,
-            tips: 0,
+            tips: sale.tip || 0,
             change: 0,
           },
         };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -19,18 +19,14 @@ import {
   DialogContentText,
   Snackbar,
   Alert,
-  Stack,
   Tooltip,
   Divider,
   Typography,
   CircularProgress,
-  Tabs,
-  Tab,
   Grid,
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  QrCodeScanner as ScannerIcon,
   LocalShipping as ReceiveIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -86,9 +82,18 @@ const InventoryPage = () => {
     sku: "",
   });
 
+  const loadInventory = useCallback(async () => {
+    try {
+      const items = await ipc.invoke("get-all-inventory");
+      setInventory(items);
+    } catch (error) {
+      console.error("Error loading inventory:", error);
+    }
+  }, []);
+
   useEffect(() => {
     loadInventory();
-  }, []);
+  }, [loadInventory]);
 
   // Reset the reception dialog when opened
   useEffect(() => {
@@ -96,6 +101,7 @@ const InventoryPage = () => {
       resetReceiveDialog();
     }
   }, [isReceiveDialogOpen]);
+
   const handlePrintInventory = () => {
     // Create a new window for printing
     const printWindow = window.open("", "_blank");
@@ -252,16 +258,6 @@ const InventoryPage = () => {
       quantity: "",
       sku: "",
     });
-  };
-
-  const loadInventory = async () => {
-    try {
-      const items = await ipc.invoke("get-all-inventory");
-      setInventory(items);
-    } catch (error) {
-      console.error("Error loading inventory:", error);
-      showSnackbar("Error loading inventory", "error");
-    }
   };
 
   const showSnackbar = (message, severity = "success") => {
@@ -468,11 +464,6 @@ const InventoryPage = () => {
       ...prev,
       [name]: value,
     }));
-  };
-
-  const handleScanBarcode = () => {
-    // TODO: Implement barcode scanning functionality
-    alert("Barcode scanning to be implemented");
   };
 
   return (

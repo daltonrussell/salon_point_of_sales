@@ -30,13 +30,14 @@ const StylistSalesTable = ({ data = [], startDate, endDate }) => {
                 <TableCell>Items</TableCell>
                 <TableCell align="right">Subtotal</TableCell>
                 <TableCell align="right">Tax</TableCell>
+                <TableCell align="right">Tip</TableCell>
                 <TableCell align="right">Total</TableCell>
                 <TableCell>Payment Method</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               <TableRow>
-                <TableCell colSpan={7} align="center">No data available</TableCell>
+                <TableCell colSpan={8} align="center">No data available</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -47,6 +48,7 @@ const StylistSalesTable = ({ data = [], startDate, endDate }) => {
 
   const totalSubtotal = data.reduce((sum, sale) => sum + sale.subtotal, 0);
   const totalTax = data.reduce((sum, sale) => sum + sale.tax, 0);
+  const totalTip = data.reduce((sum, sale) => sum + (sale.tip || 0), 0);
   const totalAmount = data.reduce((sum, sale) => sum + sale.total, 0);
 
   return (
@@ -67,6 +69,7 @@ const StylistSalesTable = ({ data = [], startDate, endDate }) => {
               <TableCell>Items</TableCell>
               <TableCell align="right">Subtotal</TableCell>
               <TableCell align="right">Tax</TableCell>
+              <TableCell align="right">Tip</TableCell>
               <TableCell align="right">Total</TableCell>
               <TableCell>Payment Method</TableCell>
             </TableRow>
@@ -87,6 +90,7 @@ const StylistSalesTable = ({ data = [], startDate, endDate }) => {
                 </TableCell>
                 <TableCell align="right">${sale.subtotal.toFixed(2)}</TableCell>
                 <TableCell align="right">${sale.tax.toFixed(2)}</TableCell>
+                <TableCell align="right">${(sale.tip || 0).toFixed(2)}</TableCell>
                 <TableCell align="right">${sale.total.toFixed(2)}</TableCell>
                 <TableCell>{sale.paymentMethod}</TableCell>
               </TableRow>
@@ -97,6 +101,7 @@ const StylistSalesTable = ({ data = [], startDate, endDate }) => {
               <TableCell colSpan={3}>Totals</TableCell>
               <TableCell align="right">${totalSubtotal.toFixed(2)}</TableCell>
               <TableCell align="right">${totalTax.toFixed(2)}</TableCell>
+              <TableCell align="right">${totalTip.toFixed(2)}</TableCell>
               <TableCell align="right">${totalAmount.toFixed(2)}</TableCell>
               <TableCell />
             </TableRow>
@@ -122,13 +127,14 @@ StylistSalesTable.generatePdfContent = (data = [], startDate, endDate) => {
               <th>Items</th>
               <th class="text-right">Subtotal</th>
               <th class="text-right">Tax</th>
+              <th class="text-right">Tip</th>
               <th class="text-right">Total</th>
               <th>Payment Method</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td colspan="7" style="text-align: center">No data available</td>
+              <td colspan="8" style="text-align: center">No data available</td>
             </tr>
           </tbody>
         </table>
@@ -138,6 +144,7 @@ StylistSalesTable.generatePdfContent = (data = [], startDate, endDate) => {
 
   const totalSubtotal = data.reduce((sum, sale) => sum + sale.subtotal, 0);
   const totalTax = data.reduce((sum, sale) => sum + sale.tax, 0);
+  const totalTip = data.reduce((sum, sale) => sum + (sale.tip || 0), 0);
   const totalAmount = data.reduce((sum, sale) => sum + sale.total, 0);
 
   return `
@@ -153,6 +160,7 @@ StylistSalesTable.generatePdfContent = (data = [], startDate, endDate) => {
             <th>Items</th>
             <th class="text-right">Subtotal</th>
             <th class="text-right">Tax</th>
+            <th class="text-right">Tip</th>
             <th class="text-right">Total</th>
             <th>Payment Method</th>
           </tr>
@@ -162,11 +170,12 @@ StylistSalesTable.generatePdfContent = (data = [], startDate, endDate) => {
             <tr>
               <td>${new Date(sale.saleDate).toLocaleDateString()}</td>
               <td>${sale.client}</td>
-              <td>${(sale.items || []).map(item => 
+              <td>${(sale.items || []).map(item =>
                 `${item.name} (${item.type}) - $${item.price.toFixed(2)}${item.quantity > 1 ? ` x${item.quantity}` : ''}`
               ).join('<br>')}</td>
               <td class="text-right">$${sale.subtotal.toFixed(2)}</td>
               <td class="text-right">$${sale.tax.toFixed(2)}</td>
+              <td class="text-right">$${(sale.tip || 0).toFixed(2)}</td>
               <td class="text-right">$${sale.total.toFixed(2)}</td>
               <td>${sale.paymentMethod}</td>
             </tr>
@@ -177,6 +186,7 @@ StylistSalesTable.generatePdfContent = (data = [], startDate, endDate) => {
             <th colspan="3">Totals</th>
             <th class="text-right">$${totalSubtotal.toFixed(2)}</th>
             <th class="text-right">$${totalTax.toFixed(2)}</th>
+            <th class="text-right">$${totalTip.toFixed(2)}</th>
             <th class="text-right">$${totalAmount.toFixed(2)}</th>
             <th></th>
           </tr>

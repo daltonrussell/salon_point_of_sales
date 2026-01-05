@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -18,7 +18,6 @@ import {
   InputAdornment,
   Snackbar,
   Alert,
-  Stack,
   Tooltip,
   FormControl,
   InputLabel,
@@ -63,19 +62,18 @@ const ServicesPage = () => {
     updatedAt: "",
   });
 
-  useEffect(() => {
-    loadServices();
-  }, []);
-
-  const loadServices = async () => {
+  const loadServices = useCallback(async () => {
     try {
       const data = await ipc.invoke("get-services", "all");
       setServices(data);
     } catch (error) {
       console.error("Error loading services:", error);
-      showSnackbar("Error loading services", "error");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadServices();
+  }, [loadServices]);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({

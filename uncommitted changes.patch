@@ -1,0 +1,2145 @@
+Index: src/hooks/useCartManagement.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/hooks/useCartManagement.js b/src/hooks/useCartManagement.js
+--- a/src/hooks/useCartManagement.js
++++ b/src/hooks/useCartManagement.js
+@@ -29,7 +29,7 @@
+     if (type === "service") {
+       const { service, stylist, isLuxury, customPrice } = itemData;
+       const servicePrice = parseFloat(customPrice) || service.price;
+-      
++
+       const newItem = {
+         id: Date.now(),
+         type: "service",
+@@ -42,7 +42,7 @@
+         quantity: 1,
+         isLuxury: isLuxury,
+       };
+-      
++
+       const updatedCart = [...cartItems, newItem];
+       setCartItems(updatedCart);
+       updateTotals(updatedCart);
+@@ -61,7 +61,24 @@
+         discountPercent: parseFloat(discountPercent),
+         price: discountedPrice,
+       };
+-      
++
++      const updatedCart = [...cartItems, newItem];
++      setCartItems(updatedCart);
++      updateTotals(updatedCart);
++      return newItem;
++    } else if (type === "bundle") {
++      const { bundle, quantity } = itemData;
++      const bundlePrice = bundle.salePrice * quantity;
++
++      const newItem = {
++        id: Date.now(),
++        type: "bundle",
++        bundle: bundle,
++        quantity: quantity,
++        price: bundlePrice,
++        components: bundle.components, // Include for display
++      };
++
+       const updatedCart = [...cartItems, newItem];
+       setCartItems(updatedCart);
+       updateTotals(updatedCart);
+Index: src/hooks/useSaleProcessing.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/hooks/useSaleProcessing.js b/src/hooks/useSaleProcessing.js
+--- a/src/hooks/useSaleProcessing.js
++++ b/src/hooks/useSaleProcessing.js
+@@ -65,6 +65,7 @@
+   const handleMixedSale = useCallback(async (
+     serviceItems,
+     productItems,
++    bundleItems,
+     clientId,
+     stylistId,
+     productStylistId,
+@@ -87,8 +88,8 @@
+       await ipc.invoke("create-sale", serviceSaleData);
+     }
+ 
+-    // Create and submit product sale
+-    if (productItems.length > 0) {
++    // Create and submit product/bundle sale (combined)
++    if (productItems.length > 0 || bundleItems.length > 0) {
+       const productSaleData = createProductSaleData(
+         productItems,
+         clientId,
+@@ -97,6 +98,16 @@
+         saleDate,
+         taxRate,
+       );
++
++      // Add bundles to the sale data
++      if (bundleItems.length > 0) {
++        productSaleData.bundles = bundleItems.map((item) => ({
++          bundleId: item.bundle.id,
++          price: item.bundle.salePrice,
++          quantity: item.quantity,
++        }));
++      }
++
+       await ipc.invoke("create-sale", productSaleData);
+     }
+ 
+@@ -110,9 +121,13 @@
+       (sum, item) => sum + parseFloat(item.price),
+       0,
+     );
+-    const productTaxAmount = Math.round((productSubtotal * taxRate) * 100) / 100;
++    const bundleSubtotal = bundleItems.reduce(
++      (sum, item) => sum + parseFloat(item.price),
++      0,
++    );
++    const productTaxAmount = Math.round(((productSubtotal + bundleSubtotal) * taxRate) * 100) / 100;
+ 
+-    return createCombinedReceiptData(
++    const receiptData = createCombinedReceiptData(
+       serviceItems,
+       productItems,
+       clientId,
+@@ -121,13 +136,26 @@
+       productStylist
+         ? `${productStylist.firstName} ${productStylist.lastName}`
+         : "House",
+-      serviceSubtotal + productSubtotal,
++      serviceSubtotal + productSubtotal + bundleSubtotal,
+       productTaxAmount + serviceTax,
+       paymentMethod,
+       null,
+       null,
+       saleDate,
+     );
++
++    // Add bundles to receipt data
++    if (bundleItems.length > 0) {
++      receiptData.bundles = bundleItems.map((item) => ({
++        bundleId: item.bundle.id,
++        name: item.bundle.bundleName,
++        price: item.bundle.salePrice,
++        quantity: item.quantity,
++        components: item.components,
++      }));
++    }
++
++    return receiptData;
+   }, []);
+ 
+   const handleSplitPaymentWithProductAttribution = useCallback(async (
+Index: src/pages/InventoryPage.jsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/pages/InventoryPage.jsx b/src/pages/InventoryPage.jsx
+--- a/src/pages/InventoryPage.jsx
++++ b/src/pages/InventoryPage.jsx
+@@ -37,17 +37,24 @@
+   ArrowBack as ArrowBackIcon,
+   Info as InfoIcon,
+   Print as PrintIcon,
++  Inventory2 as BundleIcon,
+ } from "@mui/icons-material";
++import BundleModal from "../components/inventory/BundleModal";
+ 
+ const ipc = window.api;
+ 
+ const InventoryPage = () => {
+   const [inventory, setInventory] = useState([]);
++  const [bundles, setBundles] = useState([]);
+   const [searchTerm, setSearchTerm] = useState("");
+   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+   const [itemToDelete, setItemToDelete] = useState(null);
++  const [bundleToDelete, setBundleToDelete] = useState(null);
+   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
++  const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
++  const [bundleToEdit, setBundleToEdit] = useState(null);
++  const [deleteBundleDialogOpen, setDeleteBundleDialogOpen] = useState(false);
+ 
+   const [snackbar, setSnackbar] = useState({
+     open: false,
+@@ -88,6 +95,7 @@
+ 
+   useEffect(() => {
+     loadInventory();
++    loadBundles();
+   }, []);
+ 
+   // Reset the reception dialog when opened
+@@ -256,7 +264,7 @@
+ 
+   const loadInventory = async () => {
+     try {
+-      const items = await ipc.invoke("get-all-inventory");
++      const items = await ipc.invoke("get-inventory-with-availability");
+       setInventory(items);
+     } catch (error) {
+       console.error("Error loading inventory:", error);
+@@ -264,6 +272,62 @@
+     }
+   };
+ 
++  const loadBundles = async () => {
++    try {
++      const items = await ipc.invoke("get-all-bundles");
++      setBundles(items);
++    } catch (error) {
++      console.error("Error loading bundles:", error);
++      showSnackbar("Error loading bundles", "error");
++    }
++  };
++
++  const handleBundleCreated = (newBundle) => {
++    showSnackbar(`Bundle "${newBundle.bundleName}" created successfully`);
++    loadInventory(); // Reload to update reserved quantities
++    loadBundles(); // Reload bundles list
++  };
++
++  const handleBundleUpdated = (updatedBundle) => {
++    showSnackbar(`Bundle "${updatedBundle.bundleName}" updated successfully`);
++    loadInventory(); // Reload to update reserved quantities
++    loadBundles(); // Reload bundles list
++  };
++
++  const handleCreateBundle = () => {
++    setBundleToEdit(null);
++    setIsBundleModalOpen(true);
++  };
++
++  const handleCloseBundleModal = () => {
++    setIsBundleModalOpen(false);
++    setBundleToEdit(null);
++  };
++
++  const handleEditBundle = (bundle) => {
++    setBundleToEdit(bundle);
++    setIsBundleModalOpen(true);
++  };
++
++  const handleDeleteBundleClick = (bundle) => {
++    setBundleToDelete(bundle);
++    setDeleteBundleDialogOpen(true);
++  };
++
++  const handleDeleteBundleConfirm = async () => {
++    try {
++      await ipc.invoke("delete-bundle", bundleToDelete.id);
++      showSnackbar(`Bundle "${bundleToDelete.bundleName}" deleted successfully`);
++      loadBundles();
++      loadInventory(); // Reload to update reserved quantities
++      setDeleteBundleDialogOpen(false);
++      setBundleToDelete(null);
++    } catch (error) {
++      console.error("Error deleting bundle:", error);
++      showSnackbar("Error deleting bundle", "error");
++    }
++  };
++
+   const showSnackbar = (message, severity = "success") => {
+     setSnackbar({
+       open: true,
+@@ -510,6 +574,14 @@
+             Receive Inventory
+           </Button>
+           <Button
++            variant="contained"
++            color="secondary"
++            startIcon={<BundleIcon />}
++            onClick={handleCreateBundle}
++          >
++            Create Bundle
++          </Button>
++          <Button
+             variant="outlined"
+             startIcon={<PrintIcon />}
+             onClick={handlePrintInventory}
+@@ -527,7 +599,16 @@
+               <TableCell>Manufacturer</TableCell>
+               <TableCell align="right">Purchase Price</TableCell>
+               <TableCell align="right">Sale Price</TableCell>
+-              <TableCell align="right">Quantity</TableCell>
++              <TableCell align="right">
++                <Tooltip title="Total quantity in stock">
++                  <span>Quantity</span>
++                </Tooltip>
++              </TableCell>
++              <TableCell align="right">
++                <Tooltip title="Quantity available for individual sale (not reserved in bundles)">
++                  <span>Available</span>
++                </Tooltip>
++              </TableCell>
+               <TableCell>SKU</TableCell>
+               <TableCell align="center">Actions</TableCell>
+             </TableRow>
+@@ -535,7 +616,7 @@
+           <TableBody>
+             {inventory.length === 0 ? (
+               <TableRow>
+-                <TableCell colSpan={7} align="center">
++                <TableCell colSpan={8} align="center">
+                   No inventory items found
+                 </TableCell>
+               </TableRow>
+@@ -550,7 +631,27 @@
+                   <TableCell align="right">
+                     ${parseFloat(item.salePrice).toFixed(2)}
+                   </TableCell>
+-                  <TableCell align="right">{item.quantity}</TableCell>
++                  <TableCell align="right">
++                    {item.quantityReserved > 0 ? (
++                      <Tooltip title={`${item.quantityReserved} reserved in bundles`}>
++                        <span style={{ cursor: 'help' }}>
++                          {item.quantity}
++                        </span>
++                      </Tooltip>
++                    ) : (
++                      item.quantity
++                    )}
++                  </TableCell>
++                  <TableCell align="right">
++                    <Box
++                      sx={{
++                        color: item.quantityAvailable < 5 ? 'error.main' :
++                               item.quantityReserved > 0 ? 'warning.main' : 'text.primary'
++                      }}
++                    >
++                      {item.quantityAvailable}
++                    </Box>
++                  </TableCell>
+                   <TableCell>{item.sku}</TableCell>
+                   <TableCell align="center">
+                     <Tooltip title="Edit Item">
+@@ -968,6 +1069,15 @@
+           {snackbar.message}
+         </Alert>
+       </Snackbar>
++
++      {/* Bundle Modal */}
++      <BundleModal
++        open={isBundleModalOpen}
++        onClose={handleCloseBundleModal}
++        onBundleCreated={handleBundleCreated}
++        onBundleUpdated={handleBundleUpdated}
++        bundleToEdit={bundleToEdit}
++      />
+     </Box>
+   );
+ };
+Index: src/utils/salesCalculations.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/utils/salesCalculations.js b/src/utils/salesCalculations.js
+--- a/src/utils/salesCalculations.js
++++ b/src/utils/salesCalculations.js
+@@ -27,6 +27,11 @@
+       if (!item.isBackBar) {
+         productTaxableSubtotal += price;
+       }
++    } else if (item.type === "bundle") {
++      // Bundles are taxable like products
++      const price = parseFloat(item.price);
++      productSubtotal += price;
++      productTaxableSubtotal += price;
+     }
+   });
+ 
+Index: src/components/sales/BundlesSection.jsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/components/sales/BundlesSection.jsx b/src/components/sales/BundlesSection.jsx
+new file mode 100644
+--- /dev/null
++++ b/src/components/sales/BundlesSection.jsx
+@@ -0,0 +1,161 @@
++/**
++ * Bundles Section Component
++ * Handles bundle selection and addition to cart
++ */
++import React from 'react';
++import {
++  Paper,
++  Typography,
++  Grid,
++  Button,
++  TextField,
++  Autocomplete,
++  Chip,
++  Box,
++} from '@mui/material';
++import Inventory2Icon from '@mui/icons-material/Inventory2';
++
++const BundlesSection = ({
++  bundles,
++  selectedBundle,
++  bundleQuantity,
++  bundleKey,
++  onBundleSelect,
++  onQuantityChange,
++  onAddBundle,
++}) => {
++  return (
++    <Paper sx={{ p: 3 }}>
++      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
++        <Inventory2Icon /> Bundles
++      </Typography>
++      <Grid container spacing={2} alignItems="flex-start">
++        {/* Bundle Dropdown */}
++        <Grid item xs={8}>
++          <Autocomplete
++            key={`bundle-${bundleKey}`}
++            options={bundles}
++            value={selectedBundle}
++            getOptionLabel={(option) =>
++              option ? `${option.bundleName} - $${option.salePrice}` : ""
++            }
++            renderInput={(params) => (
++              <TextField
++                {...params}
++                label="Bundle"
++                variant="outlined"
++                fullWidth
++              />
++            )}
++            onChange={(event, newValue) => onBundleSelect(newValue)}
++            renderOption={(props, option) => {
++              const { key, ...otherProps } = props;
++              return (
++                <li key={key} {...otherProps}>
++                  <Box sx={{ width: '100%' }}>
++                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
++                      <Typography>{option.bundleName}</Typography>
++                      <Chip
++                        label={`${option.quantity} available`}
++                        size="small"
++                        color={option.quantity > 0 ? "success" : "error"}
++                      />
++                    </Box>
++                    <Typography variant="body2" color="text.secondary">
++                      SKU: {option.sku} - ${option.salePrice}
++                    </Typography>
++                    <Typography variant="caption" color="text.secondary">
++                      Contains: {option.components.map(c => `${c.quantity}x ${c.productName}`).join(', ')}
++                    </Typography>
++                  </Box>
++                </li>
++              );
++            }}
++            filterOptions={(options, state) => {
++              // First, check if state.inputValue matches any SKU exactly
++              const skuMatch = options.filter(
++                (option) =>
++                  option.sku.toLowerCase() ===
++                  state.inputValue.toLowerCase(),
++              );
++
++              // If we have SKU matches, return those first
++              if (skuMatch.length > 0) {
++                return skuMatch;
++              }
++
++              // Otherwise, perform regular filtering on both SKU and bundle name
++              return options.filter(
++                (option) =>
++                  option.sku
++                    .toLowerCase()
++                    .includes(state.inputValue.toLowerCase()) ||
++                  option.bundleName
++                    .toLowerCase()
++                    .includes(state.inputValue.toLowerCase()),
++              );
++            }}
++          />
++        </Grid>
++
++        {/* Add Button */}
++        <Grid item xs={4}>
++          <Button
++            variant="contained"
++            color="secondary"
++            onClick={onAddBundle}
++            disabled={!selectedBundle || bundleQuantity < 1}
++            fullWidth
++            sx={{ height: "56px" }}
++          >
++            ADD BUNDLE
++          </Button>
++        </Grid>
++
++        {/* Quantity Input */}
++        <Grid item xs={12}>
++          <TextField
++            label="Quantity"
++            type="number"
++            variant="outlined"
++            fullWidth
++            value={bundleQuantity}
++            onChange={(e) =>
++              onQuantityChange(Math.max(1, parseInt(e.target.value) || 1))
++            }
++            InputProps={{
++              inputProps: { min: 1, max: selectedBundle?.quantity || 1 },
++            }}
++            disabled={!selectedBundle}
++            helperText={
++              selectedBundle
++                ? `${selectedBundle.quantity} bundles available`
++                : 'Select a bundle'
++            }
++          />
++        </Grid>
++
++        {/* Show selected bundle components */}
++        {selectedBundle && (
++          <Grid item xs={12}>
++            <Typography variant="body2" color="text.secondary" gutterBottom>
++              Bundle Contents:
++            </Typography>
++            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
++              {selectedBundle.components.map((component, index) => (
++                <Chip
++                  key={index}
++                  label={`${component.quantity}x ${component.productName}`}
++                  size="small"
++                  variant="outlined"
++                />
++              ))}
++            </Box>
++          </Grid>
++        )}
++      </Grid>
++    </Paper>
++  );
++};
++
++export default BundlesSection;
+Index: src/components/sales/CartSummary.jsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/components/sales/CartSummary.jsx b/src/components/sales/CartSummary.jsx
+--- a/src/components/sales/CartSummary.jsx
++++ b/src/components/sales/CartSummary.jsx
+@@ -2,13 +2,19 @@
+  * Cart Summary Component
+  * Displays cart items and totals
+  */
+-import React from 'react';
++import React, { useState } from 'react';
+ import {
+   Paper,
+   Typography,
+   Box,
+   Button,
++  Collapse,
++  IconButton,
++  Chip,
+ } from '@mui/material';
++import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
++import ExpandLessIcon from '@mui/icons-material/ExpandLess';
++import Inventory2Icon from '@mui/icons-material/Inventory2';
+ import TipComponent from '../Reusable/TipComponent';
+ 
+ const CartSummary = ({
+@@ -20,6 +26,15 @@
+   onTipChange,
+   onRemoveItem,
+ }) => {
++  const [expandedBundles, setExpandedBundles] = useState({});
++
++  const toggleBundle = (itemId) => {
++    setExpandedBundles(prev => ({
++      ...prev,
++      [itemId]: !prev[itemId]
++    }));
++  };
++
+   return (
+     <Paper sx={{ p: 3 }}>
+       <Typography variant="h6" gutterBottom>
+@@ -29,50 +44,83 @@
+       {/* Cart Items */}
+       <Box sx={{ mb: 3 }}>
+         {cartItems.map((item) => (
+-          <Box
+-            key={item.id}
+-            sx={{
+-              display: "flex",
+-              justifyContent: "space-between",
+-              alignItems: "center",
+-              mb: 1,
+-            }}
+-          >
+-            <Typography>
+-              {item.type === "service" ? (
+-                <>
+-                  {item.service.name} - {item.stylist.firstName}
+-                  {item.isLuxury && (
+-                    <span style={{ color: "#9c27b0", marginLeft: "5px" }}>
+-                      [Luxury]
+-                    </span>
+-                  )}
+-                </>
+-              ) : (
+-                <>
+-                  {item.product.productName} (x{item.quantity})
+-                  {item.isBackBar && (
+-                    <span style={{ color: "blue" }}> [Back Bar]</span>
+-                  )}
+-                  {!item.isBackBar && item.discountPercent > 0 && (
+-                    <span style={{ color: "red" }}>
+-                      {" "}
+-                      [{item.discountPercent}% off]
+-                    </span>
+-                  )}
+-                </>
+-              )}
+-            </Typography>
+-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+-              <Typography>${item.price.toFixed(2)}</Typography>
+-              <Button
+-                size="small"
+-                color="error"
+-                onClick={() => onRemoveItem(item.id)}
+-              >
+-                X
+-              </Button>
++          <Box key={item.id}>
++            <Box
++              sx={{
++                display: "flex",
++                justifyContent: "space-between",
++                alignItems: "center",
++                mb: 1,
++              }}
++            >
++              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1 }}>
++                {item.type === "bundle" && (
++                  <IconButton
++                    size="small"
++                    onClick={() => toggleBundle(item.id)}
++                    sx={{ p: 0.5 }}
++                  >
++                    {expandedBundles[item.id] ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
++                  </IconButton>
++                )}
++                <Typography>
++                  {item.type === "service" ? (
++                    <>
++                      {item.service.name} - {item.stylist.firstName}
++                      {item.isLuxury && (
++                        <span style={{ color: "#9c27b0", marginLeft: "5px" }}>
++                          [Luxury]
++                        </span>
++                      )}
++                    </>
++                  ) : item.type === "bundle" ? (
++                    <>
++                      <Inventory2Icon sx={{ fontSize: 16, verticalAlign: 'middle', mr: 0.5 }} />
++                      {item.bundle.bundleName} (x{item.quantity})
++                    </>
++                  ) : (
++                    <>
++                      {item.product.productName} (x{item.quantity})
++                      {item.isBackBar && (
++                        <span style={{ color: "blue" }}> [Back Bar]</span>
++                      )}
++                      {!item.isBackBar && item.discountPercent > 0 && (
++                        <span style={{ color: "red" }}>
++                          {" "}
++                          [{item.discountPercent}% off]
++                        </span>
++                      )}
++                    </>
++                  )}
++                </Typography>
++              </Box>
++              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
++                <Typography>${item.price.toFixed(2)}</Typography>
++                <Button
++                  size="small"
++                  color="error"
++                  onClick={() => onRemoveItem(item.id)}
++                >
++                  X
++                </Button>
++              </Box>
+             </Box>
++
++            {/* Bundle Components - Expandable */}
++            {item.type === "bundle" && (
++              <Collapse in={expandedBundles[item.id]}>
++                <Box sx={{ pl: 4, mb: 1 }}>
++                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', mb: 0.5, display: 'block' }}>
++                    Contains:
++                  </Typography>
++                  {item.components.map((component, idx) => (
++                    <Typography key={idx} variant="body2" color="text.secondary" sx={{ pl: 1 }}>
++                      • {component.quantity * item.quantity}x {component.productName}
++                    </Typography>
++                  ))}
++                </Box>
++              </Collapse>
++            )}
+           </Box>
+         ))}
+       </Box>
+Index: src/components/sales/SalesFormRefactored.jsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/components/sales/SalesFormRefactored.jsx b/src/components/sales/SalesFormRefactored.jsx
+--- a/src/components/sales/SalesFormRefactored.jsx
++++ b/src/components/sales/SalesFormRefactored.jsx
+@@ -24,6 +24,7 @@
+ // Import extracted components
+ import ServicesSection from "./ServicesSection";
+ import ProductsSection from "./ProductsSection";
++import BundlesSection from "./BundlesSection";
+ import CartSummary from "./CartSummary";
+ import PaymentSection from "./PaymentSection";
+ 
+@@ -41,6 +42,7 @@
+   const [luxuryServices, setLuxuryServices] = useState([]);
+   const [customers, setCustomers] = useState([]);
+   const [products, setProducts] = useState([]);
++  const [bundles, setBundles] = useState([]);
+   
+   // Form state
+   const [saleDate, setSaleDate] = useState(() => {
+@@ -54,14 +56,17 @@
+   const [selectedService, setSelectedService] = useState(null);
+   const [selectedLuxuryService, setSelectedLuxuryService] = useState(null);
+   const [selectedProduct, setSelectedProduct] = useState(null);
++  const [selectedBundle, setSelectedBundle] = useState(null);
+   
+   // Service/product form states
+   const [serviceType, setServiceType] = useState("regular");
+   const [serviceKey, setServiceKey] = useState(0);
+   const [luxuryServiceKey, setLuxuryServiceKey] = useState(0);
+   const [productKey, setProductKey] = useState(0);
++  const [bundleKey, setBundleKey] = useState(0);
+   const [customPrice, setCustomPrice] = useState("");
+   const [productQuantity, setProductQuantity] = useState(1);
++  const [bundleQuantity, setBundleQuantity] = useState(1);
+   const [discountPercent, setDiscountPercent] = useState("0");
+   
+   // Modal states
+@@ -127,6 +132,7 @@
+     loadServices();
+     loadAllClients();
+     loadProducts();
++    loadBundles();
+   }, []);
+ 
+   useEffect(() => {
+@@ -208,6 +214,15 @@
+     }
+   };
+ 
++  const loadBundles = async () => {
++    try {
++      const data = await ipc.invoke("get-all-bundles");
++      setBundles(data);
++    } catch (error) {
++      console.error("Error loading bundles:", error);
++    }
++  };
++
+   const handleNewCustomer = (newCustomer) => {
+     if (!newCustomer || !newCustomer.lastName || !newCustomer.firstName) {
+       console.error("Invalid customer data:", newCustomer);
+@@ -297,6 +312,33 @@
+     }
+   };
+ 
++  // Bundle handlers
++  const handleBundleSelect = (newValue) => {
++    setSelectedBundle(newValue);
++    setBundleQuantity(1); // Reset quantity when selecting a new bundle
++  };
++
++  const handleBundleQuantityChange = (quantity) => {
++    setBundleQuantity(quantity);
++  };
++
++  const handleAddBundle = () => {
++    if (selectedBundle) {
++      addToCart("bundle", {
++        bundle: selectedBundle,
++        quantity: bundleQuantity,
++      });
++
++      setSelectedBundle(null);
++      setBundleQuantity(1);
++      setBundleKey((prev) => prev + 1);
++
++      // Reload bundles and products to update quantities
++      loadBundles();
++      loadProducts();
++    }
++  };
++
+   const handleAddBackBar = () => {
+     if (selectedProduct) {
+       addBackBarItem(selectedProduct, productQuantity);
+@@ -320,10 +362,12 @@
+       const hasBackBarItems = cartItems.some((item) => item.isBackBar);
+       const productItems = cartItems.filter((item) => item.type === "product");
+       const serviceItems = cartItems.filter((item) => item.type === "service");
++      const bundleItems = cartItems.filter((item) => item.type === "bundle");
+       const hasProducts = productItems.some((item) => !item.isBackBar);
++      const hasBundles = bundleItems.length > 0;
+       const hasServices = serviceItems.length > 0;
+ 
+-      const shouldUseProductStylist = productStylistId && hasProducts;
++      const shouldUseProductStylist = productStylistId && (hasProducts || hasBundles);
+       const clientId = selectedCustomer ? selectedCustomer.id : null;
+       const stylistId = selectedStylist ? selectedStylist.id : null;
+ 
+@@ -346,6 +390,7 @@
+         saleResults = await handleMixedSale(
+           serviceItems,
+           productItems,
++          bundleItems,
+           clientId,
+           stylistId,
+           productStylistId,
+@@ -720,6 +765,17 @@
+           onAddProduct={handleAddProduct}
+           onAddBackBar={handleAddBackBar}
+         />
++
++        {/* Bundles Section */}
++        <BundlesSection
++          bundles={bundles}
++          selectedBundle={selectedBundle}
++          bundleQuantity={bundleQuantity}
++          bundleKey={bundleKey}
++          onBundleSelect={handleBundleSelect}
++          onQuantityChange={handleBundleQuantityChange}
++          onAddBundle={handleAddBundle}
++        />
+       </Grid>
+ 
+       {/* Right Section - Cart Summary */}
+Index: src/components/inventory/BundleModal.jsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/components/inventory/BundleModal.jsx b/src/components/inventory/BundleModal.jsx
+new file mode 100644
+--- /dev/null
++++ b/src/components/inventory/BundleModal.jsx
+@@ -0,0 +1,471 @@
++import React, { useState, useEffect } from 'react';
++import {
++  Dialog,
++  DialogTitle,
++  DialogContent,
++  DialogActions,
++  TextField,
++  Button,
++  Grid,
++  Typography,
++  IconButton,
++  Autocomplete,
++  Box,
++  Alert,
++  Table,
++  TableBody,
++  TableCell,
++  TableHead,
++  TableRow,
++  Checkbox,
++  FormControlLabel,
++} from '@mui/material';
++import DeleteIcon from '@mui/icons-material/Delete';
++import AddIcon from '@mui/icons-material/Add';
++
++const ipc = window.api;
++
++function BundleModal({ open, onClose, onBundleCreated, onBundleUpdated, bundleToEdit }) {
++  const [formData, setFormData] = useState({
++    bundleName: '',
++    sku: '',
++    quantity: 1,
++    components: [],
++    salePrice: 0,
++    calculatedPrice: 0,
++    overridePrice: false,
++  });
++
++  const [products, setProducts] = useState([]);
++  const [selectedProduct, setSelectedProduct] = useState(null);
++  const [componentQuantity, setComponentQuantity] = useState(1);
++  const [error, setError] = useState('');
++  const [availabilityInfo, setAvailabilityInfo] = useState('');
++
++  // Load products when modal opens
++  useEffect(() => {
++    if (open) {
++      loadProducts();
++    }
++  }, [open]);
++
++  // Reset form when modal opens/closes or when bundleToEdit changes
++  useEffect(() => {
++    if (open) {
++      if (bundleToEdit) {
++        const calculatedPrice = calculateTotalPrice(bundleToEdit.components);
++        setFormData({
++          bundleName: bundleToEdit.bundleName || '',
++          sku: bundleToEdit.sku || '',
++          quantity: bundleToEdit.quantity || 1,
++          components: bundleToEdit.components || [],
++          salePrice: bundleToEdit.salePrice || 0,
++          calculatedPrice: calculatedPrice,
++          overridePrice: bundleToEdit.salePrice !== calculatedPrice,
++        });
++      } else {
++        setFormData({
++          bundleName: '',
++          sku: '',
++          quantity: 1,
++          components: [],
++          salePrice: 0,
++          calculatedPrice: 0,
++          overridePrice: false,
++        });
++      }
++      setError('');
++      setAvailabilityInfo('');
++    }
++  }, [open, bundleToEdit]);
++
++  // Calculate availability when components or quantity changes
++  useEffect(() => {
++    if (formData.components.length > 0 && formData.quantity > 0) {
++      calculateAvailability();
++    } else {
++      setAvailabilityInfo('');
++    }
++  }, [formData.components, formData.quantity]);
++
++  // Update calculated price when components change
++  useEffect(() => {
++    const newCalculatedPrice = calculateTotalPrice(formData.components);
++    setFormData(prev => ({
++      ...prev,
++      calculatedPrice: newCalculatedPrice,
++      salePrice: prev.overridePrice ? prev.salePrice : newCalculatedPrice,
++    }));
++  }, [formData.components]);
++
++  const loadProducts = async () => {
++    try {
++      const inventoryWithAvailability = await ipc.invoke('get-inventory-with-availability');
++      setProducts(inventoryWithAvailability);
++    } catch (error) {
++      console.error('Error loading products:', error);
++      setError('Failed to load products');
++    }
++  };
++
++  const calculateTotalPrice = (components) => {
++    return components.reduce((total, comp) => {
++      return total + (comp.salePrice * comp.quantity);
++    }, 0);
++  };
++
++  const calculateAvailability = async () => {
++    if (formData.components.length === 0) {
++      setAvailabilityInfo('');
++      return;
++    }
++
++    try {
++      const inventoryWithAvailability = await ipc.invoke('get-inventory-with-availability');
++
++      let maxBundles = Infinity;
++      let limitingProduct = null;
++
++      for (const component of formData.components) {
++        const product = inventoryWithAvailability.find(p => p.id === component.inventoryId);
++        if (product) {
++          const availableForBundles = Math.floor(product.quantityAvailable / component.quantity);
++          if (availableForBundles < maxBundles) {
++            maxBundles = availableForBundles;
++            limitingProduct = product.productName;
++          }
++        }
++      }
++
++      if (maxBundles === Infinity) {
++        setAvailabilityInfo('');
++      } else if (maxBundles < formData.quantity) {
++        setAvailabilityInfo(
++          `Warning: You can only create ${maxBundles} bundles with current inventory (limited by ${limitingProduct})`
++        );
++      } else {
++        setAvailabilityInfo(
++          `You can create up to ${maxBundles} bundles with current inventory`
++        );
++      }
++    } catch (error) {
++      console.error('Error calculating availability:', error);
++    }
++  };
++
++  const handleInputChange = (event) => {
++    const { name, value } = event.target;
++    setFormData(prev => ({
++      ...prev,
++      [name]: value
++    }));
++  };
++
++  const handleNumberChange = (event) => {
++    const { name, value } = event.target;
++    const numValue = parseFloat(value);
++    if (!isNaN(numValue) && numValue >= 0) {
++      // Round to 2 decimal places to avoid floating point precision issues
++      const roundedValue = Math.round(numValue * 100) / 100;
++      setFormData(prev => ({
++        ...prev,
++        [name]: roundedValue
++      }));
++    }
++  };
++
++  const handlePriceOverrideChange = (event) => {
++    const override = event.target.checked;
++    setFormData(prev => ({
++      ...prev,
++      overridePrice: override,
++      salePrice: override ? prev.salePrice : prev.calculatedPrice,
++    }));
++  };
++
++  const handleAddComponent = () => {
++    if (!selectedProduct) {
++      setError('Please select a product');
++      return;
++    }
++
++    if (componentQuantity <= 0) {
++      setError('Quantity must be greater than 0');
++      return;
++    }
++
++    // Check if product already in components
++    if (formData.components.some(c => c.inventoryId === selectedProduct.id)) {
++      setError('This product is already in the bundle');
++      return;
++    }
++
++    const newComponent = {
++      inventoryId: selectedProduct.id,
++      productName: selectedProduct.productName,
++      quantity: componentQuantity,
++      purchasePrice: selectedProduct.purchasePrice,
++      salePrice: selectedProduct.salePrice,
++    };
++
++    setFormData(prev => ({
++      ...prev,
++      components: [...prev.components, newComponent]
++    }));
++
++    setSelectedProduct(null);
++    setComponentQuantity(1);
++    setError('');
++  };
++
++  const handleRemoveComponent = (inventoryId) => {
++    setFormData(prev => ({
++      ...prev,
++      components: prev.components.filter(c => c.inventoryId !== inventoryId)
++    }));
++  };
++
++  const handleSubmit = async (event) => {
++    event.preventDefault();
++    setError('');
++
++    if (formData.components.length === 0) {
++      setError('Please add at least one product to the bundle');
++      return;
++    }
++
++    if (formData.quantity <= 0) {
++      setError('Bundle quantity must be greater than 0');
++      return;
++    }
++
++    if (formData.salePrice <= 0) {
++      setError('Sale price must be greater than 0');
++      return;
++    }
++
++    try {
++      const bundleData = {
++        bundleName: formData.bundleName,
++        sku: formData.sku,
++        quantity: formData.quantity,
++        salePrice: formData.salePrice,
++        calculatedPrice: formData.calculatedPrice,
++        components: formData.components.map(c => ({
++          inventoryId: c.inventoryId,
++          quantity: c.quantity,
++        })),
++      };
++
++      if (bundleToEdit) {
++        // Update existing bundle
++        const updatedBundle = await ipc.invoke('update-bundle', {
++          id: bundleToEdit.id,
++          ...bundleData
++        });
++        onBundleUpdated(updatedBundle);
++      } else {
++        // Create new bundle
++        const newBundle = await ipc.invoke('create-bundle', bundleData);
++        onBundleCreated(newBundle);
++      }
++      onClose();
++    } catch (error) {
++      console.error('Error saving bundle:', error);
++      setError(error.message || 'Failed to save bundle');
++    }
++  };
++
++  const isEditMode = !!bundleToEdit;
++
++  return (
++    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
++      <DialogTitle>{isEditMode ? 'Edit Bundle' : 'Create New Bundle'}</DialogTitle>
++      <form onSubmit={handleSubmit}>
++        <DialogContent>
++          {error && (
++            <Alert severity="error" sx={{ mb: 2 }}>
++              {error}
++            </Alert>
++          )}
++
++          {availabilityInfo && (
++            <Alert
++              severity={availabilityInfo.includes('Warning') ? 'warning' : 'info'}
++              sx={{ mb: 2 }}
++            >
++              {availabilityInfo}
++            </Alert>
++          )}
++
++          <Grid container spacing={2}>
++            <Grid item xs={12} sm={6}>
++              <TextField
++                name="bundleName"
++                label="Bundle Name"
++                value={formData.bundleName}
++                onChange={handleInputChange}
++                required
++                fullWidth
++                placeholder="e.g., Holiday Gift Basket"
++              />
++            </Grid>
++            <Grid item xs={12} sm={6}>
++              <TextField
++                name="sku"
++                label="SKU"
++                value={formData.sku}
++                onChange={handleInputChange}
++                required
++                fullWidth
++                placeholder="e.g., BUNDLE-HOLIDAY-001"
++              />
++            </Grid>
++            <Grid item xs={12} sm={6}>
++              <TextField
++                name="quantity"
++                label="Number of Bundles to Create"
++                type="number"
++                value={formData.quantity}
++                onChange={handleNumberChange}
++                required
++                fullWidth
++                inputProps={{ min: 1, step: 1 }}
++              />
++            </Grid>
++
++            {/* Component Products Section */}
++            <Grid item xs={12}>
++              <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
++                Component Products
++              </Typography>
++
++              <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'flex-start' }}>
++                <Autocomplete
++                  value={selectedProduct}
++                  onChange={(event, newValue) => setSelectedProduct(newValue)}
++                  options={products}
++                  getOptionLabel={(option) =>
++                    `${option.productName} (Available: ${option.quantityAvailable})`
++                  }
++                  renderOption={(props, option) => (
++                    <li {...props} key={option.id}>
++                      <Box>
++                        <Typography>{option.productName}</Typography>
++                        <Typography variant="body2" color="text.secondary">
++                          Stock: {option.quantity} (Available: {option.quantityAvailable}, Reserved: {option.quantityReserved}) - ${option.salePrice}
++                        </Typography>
++                      </Box>
++                    </li>
++                  )}
++                  sx={{ flexGrow: 1 }}
++                  renderInput={(params) => (
++                    <TextField {...params} label="Select Product" />
++                  )}
++                />
++                <TextField
++                  label="Quantity"
++                  type="number"
++                  value={componentQuantity}
++                  onChange={(e) => setComponentQuantity(parseInt(e.target.value) || 1)}
++                  inputProps={{ min: 1, step: 1 }}
++                  sx={{ width: 120 }}
++                />
++                <IconButton
++                  color="primary"
++                  onClick={handleAddComponent}
++                  sx={{ mt: 1 }}
++                >
++                  <AddIcon />
++                </IconButton>
++              </Box>
++
++              {formData.components.length > 0 && (
++                <Table size="small">
++                  <TableHead>
++                    <TableRow>
++                      <TableCell>Product</TableCell>
++                      <TableCell align="right">Qty per Bundle</TableCell>
++                      <TableCell align="right">Price Each</TableCell>
++                      <TableCell align="right">Subtotal</TableCell>
++                      <TableCell align="right">Action</TableCell>
++                    </TableRow>
++                  </TableHead>
++                  <TableBody>
++                    {formData.components.map((component) => (
++                      <TableRow key={component.inventoryId}>
++                        <TableCell>{component.productName}</TableCell>
++                        <TableCell align="right">{component.quantity}</TableCell>
++                        <TableCell align="right">${component.salePrice.toFixed(2)}</TableCell>
++                        <TableCell align="right">
++                          ${(component.salePrice * component.quantity).toFixed(2)}
++                        </TableCell>
++                        <TableCell align="right">
++                          <IconButton
++                            size="small"
++                            onClick={() => handleRemoveComponent(component.inventoryId)}
++                          >
++                            <DeleteIcon />
++                          </IconButton>
++                        </TableCell>
++                      </TableRow>
++                    ))}
++                    <TableRow>
++                      <TableCell colSpan={3} align="right">
++                        <strong>Calculated Total:</strong>
++                      </TableCell>
++                      <TableCell align="right">
++                        <strong>${formData.calculatedPrice.toFixed(2)}</strong>
++                      </TableCell>
++                      <TableCell />
++                    </TableRow>
++                  </TableBody>
++                </Table>
++              )}
++            </Grid>
++
++            {/* Pricing Section */}
++            <Grid item xs={12}>
++              <FormControlLabel
++                control={
++                  <Checkbox
++                    checked={formData.overridePrice}
++                    onChange={handlePriceOverrideChange}
++                  />
++                }
++                label="Override calculated price"
++              />
++            </Grid>
++
++            <Grid item xs={12} sm={6}>
++              <TextField
++                name="salePrice"
++                label="Bundle Sale Price"
++                type="number"
++                value={formData.salePrice}
++                onChange={handleNumberChange}
++                required
++                fullWidth
++                disabled={!formData.overridePrice}
++                inputProps={{ min: 0, step: 0.01 }}
++                helperText={
++                  formData.overridePrice
++                    ? `Calculated price: $${formData.calculatedPrice.toFixed(2)}`
++                    : 'Using calculated price from components'
++                }
++              />
++            </Grid>
++          </Grid>
++        </DialogContent>
++        <DialogActions>
++          <Button onClick={onClose}>Cancel</Button>
++          <Button type="submit" variant="contained" color="primary">
++            {isEditMode ? 'Update Bundle' : 'Create Bundle'}
++          </Button>
++        </DialogActions>
++      </form>
++    </Dialog>
++  );
++}
++
++export default BundleModal;
+Index: src/database.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/database.json b/src/database.json
+--- a/src/database.json
++++ b/src/database.json
+@@ -800,6 +800,55 @@
+       "updatedAt": "2025-09-23T01:23:45.071Z"
+     }
+   ],
++  "bundles": [
++    {
++      "id": "1764042710207",
++      "bundleName": "asdf",
++      "sku": "HOLIDAY-1",
++      "salePrice": 52.980000000000004,
++      "calculatedPrice": 52.980000000000004,
++      "quantity": 5,
++      "components": [
++        {
++          "inventoryId": "1670284800000",
++          "quantity": 1,
++          "productName": "Hair Mask - Deep Repair",
++          "purchasePrice": 15,
++          "salePrice": 32.99
++        },
++        {
++          "inventoryId": "1670112000000",
++          "quantity": 1,
++          "productName": "Heat Protectant Spray",
++          "purchasePrice": 10.25,
++          "salePrice": 19.99
++        }
++      ],
++      "showInUI": true,
++      "createdAt": "2025-11-25T03:51:50.207Z",
++      "updatedAt": "2025-11-25T03:51:50.207Z"
++    },
++    {
++      "id": "1764042754539",
++      "bundleName": "asdfasdfasdf",
++      "sku": "HOLIDAY-1",
++      "salePrice": 500,
++      "calculatedPrice": 32.99,
++      "quantity": 1,
++      "components": [
++        {
++          "inventoryId": "1670284800000",
++          "quantity": 1,
++          "productName": "Hair Mask - Deep Repair",
++          "purchasePrice": 15,
++          "salePrice": 32.99
++        }
++      ],
++      "showInUI": true,
++      "createdAt": "2025-11-25T03:52:34.539Z",
++      "updatedAt": "2025-11-25T03:52:34.539Z"
++    }
++  ],
+   "saleItems": [
+     {
+       "id": "1677801600003",
+Index: public/electron.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/public/electron.js b/public/electron.js
+--- a/public/electron.js
++++ b/public/electron.js
+@@ -39,6 +39,7 @@
+   sales: [],
+   saleItems: [],
+   inventory: [],
++  bundles: [],
+ }).write();
+ 
+ /*** DATABASE BACKUP FUNCTIONALITY ***/
+@@ -323,13 +324,16 @@
+       log("Updated existing inventory items with showInUI field");
+     }
+ 
+-    try {
+-      const printerName = "BTP-M280(U) 1"; // Your receipt printer name
+-      const command = `powershell -command "Get-PrintJob -PrinterName '${printerName}' | Remove-PrintJob"`;
+-      await execPromise(command);
+-      log("Cleared printer queue on startup");
+-    } catch (err) {
+-      log("Could not clear printer queue:", err);
++    // Only attempt to clear printer queue on Windows
++    if (process.platform === 'win32') {
++      try {
++        const printerName = "BTP-M280(U) 1"; // Your receipt printer name
++        const command = `powershell -command "Get-PrintJob -PrinterName '${printerName}' | Remove-PrintJob"`;
++        await execPromise(command);
++        log("Cleared printer queue on startup");
++      } catch (err) {
++        log("Could not clear printer queue:", err);
++      }
+     }
+ 
+     // Continue with normal initialization
+@@ -598,6 +602,7 @@
+       StylistId,
+       services,
+       products,
++      bundles,
+       subtotal,
+       tax,
+       tip,
+@@ -670,15 +675,123 @@
+           createdAt: new Date(),
+           updatedAt: new Date(),
+         });
++      }
++
++      // Handle bundles
++      const bundleItems = [];
++      if (bundles && bundles.length > 0) {
++        for (const bundleSale of bundles) {
++          const bundle = db
++            .get("bundles")
++            .find({ id: bundleSale.bundleId })
++            .value();
++
++          if (!bundle) {
++            throw new Error(`Bundle with ID ${bundleSale.bundleId} not found`);
++          }
++
++          // Validate bundle quantity
++          if (bundle.quantity < bundleSale.quantity) {
++            throw new Error(
++              `Insufficient bundle quantity for ${bundle.bundleName}. ` +
++              `Available: ${bundle.quantity}, Requested: ${bundleSale.quantity}`
++            );
++          }
++
++          // Validate component inventory (warning only, allow sale to proceed)
++          const warnings = [];
++          for (const component of bundle.components) {
++            const inventoryItem = db
++              .get("inventory")
++              .find({ id: component.inventoryId })
++              .value();
++
++            if (!inventoryItem) {
++              warnings.push(`Component product ${component.productName} not found`);
++              continue;
++            }
++
++            const requiredQuantity = component.quantity * bundleSale.quantity;
++            if (inventoryItem.quantity < requiredQuantity) {
++              warnings.push(
++                `Low inventory for ${component.productName}: ` +
++                `Available ${inventoryItem.quantity}, Required ${requiredQuantity}`
++              );
++            }
++          }
++
++          // Log warnings but proceed with sale
++          if (warnings.length > 0) {
++            log("Bundle sale warnings:", warnings);
++          }
++
++          // Create main bundle sale item
++          const bundleSaleItem = {
++            id: generateId(),
++            SaleId: sale.id,
++            BundleId: bundle.id,
++            price: bundleSale.price,
++            quantity: bundleSale.quantity,
++            itemType: "bundle",
++            createdAt: new Date(),
++            updatedAt: new Date(),
++          };
++          bundleItems.push(bundleSaleItem);
++
++          // Create component sale items (children of bundle)
++          for (const component of bundle.components) {
++            const totalComponentQuantity = component.quantity * bundleSale.quantity;
++
++            // Update component inventory
++            const inventoryItem = db
++              .get("inventory")
++              .find({ id: component.inventoryId })
++              .value();
++
++            if (inventoryItem) {
++              db.get("inventory")
++                .find({ id: component.inventoryId })
++                .assign({
++                  quantity: inventoryItem.quantity - totalComponentQuantity,
++                  updatedAt: new Date(),
++                })
++                .write();
++            }
++
++            // Create component sale item
++            bundleItems.push({
++              id: generateId(),
++              SaleId: sale.id,
++              InventoryId: component.inventoryId,
++              BundleId: bundle.id,
++              parentSaleItemId: bundleSaleItem.id,
++              isBundleComponent: true,
++              price: 0, // Components are included in bundle price
++              quantity: totalComponentQuantity,
++              itemType: "product",
++              createdAt: new Date(),
++              updatedAt: new Date(),
++            });
++          }
++
++          // Reduce bundle quantity
++          db.get("bundles")
++            .find({ id: bundle.id })
++            .assign({
++              quantity: bundle.quantity - bundleSale.quantity,
++              updatedAt: new Date(),
++            })
++            .write();
++        }
+       }
+ 
+       // Save all changes
+       db.get("sales").push(sale).write();
+       db.get("saleItems")
+-        .push(...serviceItems, ...productItems)
++        .push(...serviceItems, ...productItems, ...bundleItems)
+         .write();
+ 
+-      return { sale, saleItems: [...serviceItems, ...productItems] };
++      return { sale, saleItems: [...serviceItems, ...productItems, ...bundleItems] };
+     } catch (error) {
+       log("Error creating sale:", error);
+       throw error;
+@@ -1764,6 +1877,290 @@
+     throw error;
+   }
+ });
++
++// Bundle Handlers
++
++// Helper function to calculate reserved quantity for an inventory item
++function getReservedQuantity(inventoryId) {
++  try {
++    const bundles = db.get("bundles").filter({ showInUI: true }).value();
++    let reserved = 0;
++
++    bundles.forEach(bundle => {
++      const component = bundle.components.find(c => c.inventoryId === inventoryId);
++      if (component) {
++        reserved += component.quantity * bundle.quantity;
++      }
++    });
++
++    return reserved;
++  } catch (error) {
++    log("Error calculating reserved quantity:", error);
++    return 0;
++  }
++}
++
++// Helper function to get bundles that use a specific product
++function getBundlesUsingProduct(inventoryId) {
++  try {
++    const bundles = db.get("bundles").filter({ showInUI: true }).value();
++    return bundles.filter(bundle =>
++      bundle.components.some(c => c.inventoryId === inventoryId)
++    );
++  } catch (error) {
++    log("Error getting bundles using product:", error);
++    return [];
++  }
++}
++
++ipcMain.handle("get-all-bundles", async () => {
++  try {
++    return db
++      .get("bundles")
++      .filter({ showInUI: true })
++      .orderBy(["bundleName"], ["asc"])
++      .value();
++  } catch (error) {
++    log("Error fetching all bundles:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("get-bundle-by-id", async (event, id) => {
++  try {
++    return db.get("bundles").find({ id }).value();
++  } catch (error) {
++    log("Error fetching bundle by id:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("search-bundles", async (event, searchTerm) => {
++  try {
++    const searchTermLower = searchTerm.toLowerCase();
++    return db
++      .get("bundles")
++      .filter(
++        (bundle) =>
++          bundle.showInUI !== false &&
++          (bundle.bundleName.toLowerCase().includes(searchTermLower) ||
++            bundle.sku.toLowerCase().includes(searchTermLower))
++      )
++      .value();
++  } catch (error) {
++    log("Error searching bundles:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("create-bundle", async (event, bundleData) => {
++  try {
++    // Validate components have sufficient inventory
++    for (const component of bundleData.components) {
++      const inventoryItem = db
++        .get("inventory")
++        .find({ id: component.inventoryId })
++        .value();
++
++      if (!inventoryItem) {
++        throw new Error(`Product with ID ${component.inventoryId} not found`);
++      }
++
++      const currentReserved = getReservedQuantity(component.inventoryId);
++      const availableQuantity = inventoryItem.quantity - currentReserved;
++      const requiredQuantity = component.quantity * bundleData.quantity;
++
++      if (availableQuantity < requiredQuantity) {
++        throw new Error(
++          `Insufficient inventory for ${inventoryItem.productName}. ` +
++          `Available: ${availableQuantity}, Required: ${requiredQuantity}`
++        );
++      }
++    }
++
++    // Create bundle with cached component details
++    const enrichedComponents = bundleData.components.map(component => {
++      const inventoryItem = db
++        .get("inventory")
++        .find({ id: component.inventoryId })
++        .value();
++
++      return {
++        inventoryId: component.inventoryId,
++        quantity: component.quantity,
++        productName: inventoryItem.productName,
++        purchasePrice: inventoryItem.purchasePrice,
++        salePrice: inventoryItem.salePrice,
++      };
++    });
++
++    const bundle = {
++      id: generateId(),
++      bundleName: bundleData.bundleName,
++      sku: bundleData.sku,
++      salePrice: bundleData.salePrice,
++      calculatedPrice: bundleData.calculatedPrice,
++      quantity: bundleData.quantity,
++      components: enrichedComponents,
++      showInUI: true,
++      createdAt: new Date(),
++      updatedAt: new Date(),
++    };
++
++    db.get("bundles").push(bundle).write();
++    return bundle;
++  } catch (error) {
++    log("Error creating bundle:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("update-bundle", async (event, { id, ...updateData }) => {
++  try {
++    const existingBundle = db.get("bundles").find({ id }).value();
++
++    if (!existingBundle) {
++      throw new Error(`Bundle with ID ${id} not found`);
++    }
++
++    // If components or quantity changed, validate inventory
++    if (updateData.components || updateData.quantity) {
++      const components = updateData.components || existingBundle.components;
++      const quantity = updateData.quantity !== undefined ? updateData.quantity : existingBundle.quantity;
++
++      for (const component of components) {
++        const inventoryItem = db
++          .get("inventory")
++          .find({ id: component.inventoryId })
++          .value();
++
++        if (!inventoryItem) {
++          throw new Error(`Product with ID ${component.inventoryId} not found`);
++        }
++
++        // Calculate reserved quantity excluding this bundle
++        const otherBundles = db
++          .get("bundles")
++          .filter(b => b.showInUI === true && b.id !== id)
++          .value();
++
++        let reservedByOthers = 0;
++        otherBundles.forEach(bundle => {
++          const comp = bundle.components.find(c => c.inventoryId === component.inventoryId);
++          if (comp) {
++            reservedByOthers += comp.quantity * bundle.quantity;
++          }
++        });
++
++        const availableQuantity = inventoryItem.quantity - reservedByOthers;
++        const requiredQuantity = component.quantity * quantity;
++
++        if (availableQuantity < requiredQuantity) {
++          throw new Error(
++            `Insufficient inventory for ${inventoryItem.productName}. ` +
++            `Available: ${availableQuantity}, Required: ${requiredQuantity}`
++          );
++        }
++      }
++
++      // Enrich components with latest inventory data
++      if (updateData.components) {
++        updateData.components = updateData.components.map(component => {
++          const inventoryItem = db
++            .get("inventory")
++            .find({ id: component.inventoryId })
++            .value();
++
++          return {
++            inventoryId: component.inventoryId,
++            quantity: component.quantity,
++            productName: inventoryItem.productName,
++            purchasePrice: inventoryItem.purchasePrice,
++            salePrice: inventoryItem.salePrice,
++          };
++        });
++      }
++    }
++
++    db.get("bundles")
++      .find({ id })
++      .assign({
++        ...updateData,
++        updatedAt: new Date(),
++      })
++      .write();
++
++    return db.get("bundles").find({ id }).value();
++  } catch (error) {
++    log("Error updating bundle:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("delete-bundle", async (event, { id }) => {
++  try {
++    const bundle = db.get("bundles").find({ id }).value();
++
++    if (!bundle) {
++      throw new Error(`Bundle with ID ${id} not found`);
++    }
++
++    // Soft delete - just set showInUI to false
++    // This automatically "releases" reserved inventory
++    db.get("bundles")
++      .find({ id })
++      .assign({
++        showInUI: false,
++        updatedAt: new Date(),
++      })
++      .write();
++
++    return { success: true };
++  } catch (error) {
++    log("Error deleting bundle:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("get-inventory-reserved-quantity", async (event, inventoryId) => {
++  try {
++    return getReservedQuantity(inventoryId);
++  } catch (error) {
++    log("Error getting inventory reserved quantity:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("get-bundles-using-product", async (event, inventoryId) => {
++  try {
++    return getBundlesUsingProduct(inventoryId);
++  } catch (error) {
++    log("Error getting bundles using product:", error);
++    throw error;
++  }
++});
++
++ipcMain.handle("get-inventory-with-availability", async () => {
++  try {
++    const inventory = db
++      .get("inventory")
++      .filter({ showInUI: true })
++      .orderBy(["productName"], ["asc"])
++      .value();
++
++    return inventory.map(item => {
++      const reserved = getReservedQuantity(item.id);
++      return {
++        ...item,
++        quantityReserved: reserved,
++        quantityAvailable: item.quantity - reserved,
++      };
++    });
++  } catch (error) {
++    log("Error fetching inventory with availability:", error);
++    throw error;
++  }
++});
+ 
+ // Database Backup Handlers
+ ipcMain.handle("create-manual-backup", async () => {
+Index: BUNDLE_PRODUCTS_REQUIREMENTS.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/BUNDLE_PRODUCTS_REQUIREMENTS.md b/BUNDLE_PRODUCTS_REQUIREMENTS.md
+new file mode 100644
+--- /dev/null
++++ b/BUNDLE_PRODUCTS_REQUIREMENTS.md
+@@ -0,0 +1,280 @@
++# Bundle Products Feature Requirements
++
++## Overview
++Allow creation of "bundle" products (like gift baskets) that are composed of multiple individual inventory items. Bundles reserve component products when created and track them separately.
++
++## Business Rules
++
++### 1. Bundle Creation & Management
++- Bundles are created and managed in the Inventory page as a special product type
++- Each bundle has:
++  - Unique name and SKU
++  - List of component products (with quantities per bundle)
++  - Sale price (can be custom or auto-calculated)
++  - Quantity of bundles available
++- When a bundle is created, component products are immediately reserved
++- Bundles appear in inventory list with visual indicator (🎁 icon or "BUNDLE" badge)
++
++### 2. Product Reservation System
++- Individual products track two quantities:
++  - **Total Quantity**: Physical inventory count
++  - **Reserved Quantity**: Amount reserved in bundles (calculated)
++  - **Available Quantity**: Total - Reserved (for individual sales)
++- Product inventory display shows: "10 total (6 available, 4 reserved)"
++- Tooltip on reserved products shows which bundles reserve them
++- Reserved products cannot be sold individually (only available quantity can be sold)
++
++### 3. Pricing
++- Default bundle price = sum of component product sale prices
++- User can manually override the calculated price
++- Price can be set to create promotional/discount pricing
++
++### 4. Stock Validation & Sales
++- When selling a bundle:
++  - Check if bundle quantity > 0
++  - Check if sufficient component inventory exists
++  - If insufficient: Show warning but allow sale to proceed
++  - This may result in negative inventory (tracked for correction)
++- Selling a bundle:
++  - Reduces bundle quantity by 1
++  - Reduces each component product's total quantity
++  - Automatically recalculates reserved quantities
++
++### 5. Bundle Editing
++- Bundles can be edited after creation
++- Editing only affects the bundle going forward (doesn't retroactively change sold bundles)
++- Changes to components/pricing apply to remaining bundle inventory
++- If bundle quantity is reduced, excess reserved products return to available
++
++### 6. Bundle Deletion
++- Deleting a bundle returns all reserved products to available inventory
++- Should warn if bundle has been sold (historical data exists)
++- Soft delete (showInUI: false) to maintain data integrity
++
++### 7. Sales & Receipts
++- Receipt displays:
++  ```
++  Holiday Gift Basket               $50.00
++    - Hairspray (3)
++    - Root Boost (1)
++    - Dry Shampoo (1)
++  ```
++- Backend tracks:
++  - Bundle sale item (main line)
++  - Component sale items (children, linked to parent)
++
++### 8. Reporting
++- **Inventory Tax Reports**: Bundles appear as single line items with bundle price
++- **Profit Calculations**:
++  - Bundle sale price vs. sum of component purchase prices
++  - Profit = Bundle Sale Price - Σ(Component Purchase Price × Component Quantity)
++- **Sales Reports**: Show bundles as sold (with expandable component detail)
++
++### 9. Restrictions
++- Bundles cannot be used as "back bar" items
++- Bundles cannot contain other bundles (no nesting)
++- Component products must have sufficient quantity to create bundle
++
++## Technical Implementation
++
++### Database Schema
++
++#### New `bundles` Table
++```javascript
++{
++  id: String,                    // Unique ID (timestamp-based)
++  bundleName: String,            // Display name
++  sku: String,                   // Unique SKU for scanning/search
++  salePrice: Number,             // Final bundle price
++  calculatedPrice: Number,       // Auto-calculated from components (for reference)
++  quantity: Number,              // Number of bundles available
++  components: [                  // Array of component products
++    {
++      inventoryId: String,       // Reference to inventory item
++      quantity: Number,          // Quantity needed per bundle
++      productName: String,       // Cached for display (in case product deleted)
++      purchasePrice: Number,     // Cached for profit calc
++      salePrice: Number          // Cached for price calc
++    }
++  ],
++  createdAt: Date,
++  updatedAt: Date,
++  showInUI: Boolean              // Soft delete flag
++}
++```
++
++#### Updates to `saleItems` Table
++```javascript
++{
++  // ... existing fields
++  BundleId: String,              // Reference if this sale item is a bundle
++  parentSaleItemId: String,      // For component items, reference to bundle sale item
++  isBundleComponent: Boolean     // Flag to identify component items
++}
++```
++
++#### Inventory Calculations (No Schema Change)
++- `quantityReserved`: Calculated on-the-fly by summing bundle components
++- `quantityAvailable`: quantity - quantityReserved
++
++### API Endpoints (IPC Handlers)
++
++#### Bundle Management
++- `get-all-bundles`: Fetch all visible bundles
++- `get-bundle-by-id`: Fetch single bundle with full component details
++- `search-bundles`: Search bundles by name or SKU
++- `create-bundle`: Create new bundle with validation
++- `update-bundle`: Edit existing bundle
++- `delete-bundle`: Soft delete bundle (return reserved inventory)
++- `get-bundle-availability`: Check if bundle can be created with current stock
++
++#### Inventory Queries
++- `get-inventory-reserved-quantity`: Calculate reserved quantity for a product
++- `get-inventory-with-availability`: Get inventory items with available/reserved breakdown
++- `get-bundles-using-product`: Get list of bundles that use a specific product
++
++#### Sales
++- `validate-bundle-sale`: Check if bundle can be sold (stock validation)
++- Update `create-sale`: Handle bundle items differently (create parent + children)
++
++### UI Components
++
++#### 1. Inventory Page Updates
++**Location**: `/src/pages/InventoryPage.jsx`
++
++- Add "Create Bundle" button next to "Receive Inventory"
++- Update inventory table to show:
++  - Bundle indicator (icon/badge) for bundle products
++  - Available vs Reserved quantities for regular products
++  - Tooltip showing bundle reservations
++- Add bundle-specific actions (Edit Bundle, Delete Bundle)
++
++#### 2. Create/Edit Bundle Modal
++**New Component**: `/src/components/inventory/BundleModal.jsx`
++
++- Bundle information fields (name, SKU)
++- Component product selector:
++  - Search/autocomplete for products
++  - Quantity input per product
++  - Show available quantity for each product
++  - Remove component button
++- Price section:
++  - Show auto-calculated price
++  - Override checkbox + custom price input
++- Availability check:
++  - "You can create X bundles with current inventory"
++  - Warning if insufficient stock
++- Bundle quantity input
++- Create/Update button
++
++#### 3. Inventory Table Component Updates
++**Location**: `/src/components/inventory/InventoryTable.jsx`
++
++- Add "Type" column (Product/Bundle)
++- Update "Quantity" column:
++  - For products: "10 total (6 available, 4 reserved)"
++  - For bundles: "5 bundles"
++- Add hover tooltip for reserved quantities
++- Update action buttons based on type
++
++#### 4. Product Selection in Sales
++**Location**: `/src/components/sales/ProductsSection.jsx`
++
++- Include bundles in product autocomplete
++- Visual indicator for bundles in dropdown
++- Show bundle components when selected
++- Display availability warning if applicable
++
++#### 5. Cart Display Updates
++**Location**: `/src/components/sales/CartSummary.jsx`
++
++- Bundle items show expandable/collapsible component list
++- Indented display of components
++
++#### 6. Receipt Updates
++**Location**: `/src/components/sales/Receipt.jsx`
++
++- Format bundle items with component list underneath
++- Indented component display
++
++### Implementation Steps
++
++#### Phase 1: Database & Backend (Priority 1)
++1. Add bundles table to database schema
++2. Create IPC handlers for bundle CRUD operations
++3. Implement inventory reservation calculations
++4. Update sale creation handler to support bundles
++
++#### Phase 2: Bundle Management UI (Priority 2)
++5. Create BundleModal component
++6. Update InventoryPage with bundle management
++7. Update InventoryTable to show availability/reserved
++8. Add bundle search functionality
++
++#### Phase 3: Sales Integration (Priority 3)
++9. Update ProductsSection to include bundles
++10. Update cart to display bundle components
++11. Update sale creation flow to handle bundles
++12. Add stock validation warnings
++
++#### Phase 4: Display & Reporting (Priority 4)
++13. Update Receipt component for bundles
++14. Update sales history to show bundles correctly
++15. Update inventory reports
++16. Add profit calculation for bundles
++
++#### Phase 5: Edge Cases & Polish (Priority 5)
++17. Handle bundle deletion (return inventory)
++18. Handle bundle editing (recalculate reservations)
++19. Add tooltips showing bundle reservations
++20. Testing & bug fixes
++
++## Test Scenarios
++
++### Happy Path
++1. Create bundle with 3 hairsprays, 1 root boost, 1 dry shampoo (qty: 3)
++2. Verify inventory shows reserved quantities
++3. Sell 1 bundle
++4. Verify bundle quantity reduced and component inventory reduced
++5. Verify receipt shows bundle with components
++
++### Edge Cases
++1. Try to sell bundle with insufficient component stock (should warn but allow)
++2. Delete bundle and verify inventory returned
++3. Edit bundle and verify reservations recalculated
++4. Create bundle with product that's already mostly reserved
++5. Try to sell more individual products than available (reserved should block)
++
++## Example Use Case
++
++**Scenario**: Holiday Gift Basket
++
++**Components**:
++- Hairspray (SKU: HS-001): $15 each, 10 in stock
++- Root Boost (SKU: RB-001): $12 each, 8 in stock
++- Dry Shampoo (SKU: DS-001): $18 each, 6 in stock
++
++**Bundle Creation**:
++- Name: "Holiday Gift Basket"
++- SKU: BUNDLE-HOLIDAY-001
++- Components: 3x Hairspray, 1x Root Boost, 1x Dry Shampoo
++- Calculated Price: (3×$15) + $12 + $18 = $75
++- Override Price: $60 (20% discount)
++- Quantity to Create: 3 bundles
++
++**After Creation**:
++- Hairspray: 10 total (1 available, 9 reserved)
++- Root Boost: 8 total (5 available, 3 reserved)
++- Dry Shampoo: 6 total (3 available, 3 reserved)
++- Holiday Gift Basket: 3 bundles available at $60 each
++
++**After Selling 1 Bundle**:
++- Hairspray: 7 total (1 available, 6 reserved in 2 bundles)
++- Root Boost: 7 total (5 available, 2 reserved in 2 bundles)
++- Dry Shampoo: 5 total (3 available, 2 reserved in 2 bundles)
++- Holiday Gift Basket: 2 bundles available
++
++**Profit Calculation for 1 Bundle**:
++- Sale Price: $60
++- Cost: (3×$purchasePrice_HS) + $purchasePrice_RB + $purchasePrice_DS
++- Profit: $60 - Cost
+diff --git a/.claude/settings.local.json b/.claude/settings.local.json
+new file mode 100644

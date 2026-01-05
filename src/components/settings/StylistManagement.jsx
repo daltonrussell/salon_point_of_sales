@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -16,7 +16,6 @@ import {
   FormControl,
   InputLabel,
   IconButton,
-  Divider,
   Alert,
   Snackbar,
 } from "@mui/material";
@@ -43,18 +42,18 @@ function StylistManagement() {
     setShowSaveSuccess(true);
   };
 
-  const loadStylists = async () => {
+  const loadStylists = useCallback(async () => {
     try {
       const data = await ipc.invoke("get-stylists", statusFilter);
       setStylists(data);
     } catch (error) {
       console.error("Error loading stylists:", error);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     loadStylists();
-  }, [statusFilter]);
+  }, [loadStylists]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
