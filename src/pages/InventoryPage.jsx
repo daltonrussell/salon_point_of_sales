@@ -19,18 +19,14 @@ import {
   DialogContentText,
   Snackbar,
   Alert,
-  Stack,
   Tooltip,
   Divider,
   Typography,
   CircularProgress,
-  Tabs,
-  Tab,
   Grid,
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  QrCodeScanner as ScannerIcon,
   LocalShipping as ReceiveIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -88,7 +84,7 @@ const InventoryPage = () => {
 
   useEffect(() => {
     loadInventory();
-  }, []);
+  }, [loadInventory]);
 
   // Reset the reception dialog when opened
   useEffect(() => {
@@ -468,11 +464,6 @@ const InventoryPage = () => {
       ...prev,
       [name]: value,
     }));
-  };
-
-  const handleScanBarcode = () => {
-    // TODO: Implement barcode scanning functionality
-    alert("Barcode scanning to be implemented");
   };
 
   return (

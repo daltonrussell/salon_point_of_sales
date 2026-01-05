@@ -18,7 +18,6 @@ import {
   Typography,
   Chip,
   Divider,
-  Tooltip,
   Button,
   Dialog,
   DialogActions,
@@ -307,7 +306,7 @@ const CustomersPage = () => {
 
   useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [loadCustomers]);
 
   const loadCustomers = async () => {
     try {

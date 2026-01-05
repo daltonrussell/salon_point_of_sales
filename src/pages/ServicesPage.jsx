@@ -18,7 +18,6 @@ import {
   InputAdornment,
   Snackbar,
   Alert,
-  Stack,
   Tooltip,
   FormControl,
   InputLabel,
@@ -65,7 +64,7 @@ const ServicesPage = () => {
 
   useEffect(() => {
     loadServices();
-  }, []);
+  }, [loadServices]);
 
   const loadServices = async () => {
     try {

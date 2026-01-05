@@ -2,7 +2,7 @@
  * Services Section Component
  * Handles service selection and addition to cart
  */
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Paper,
   Typography,

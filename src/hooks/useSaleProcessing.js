@@ -2,13 +2,12 @@
  * Custom hook for managing sale processing logic
  */
 import { useState, useCallback } from 'react';
-import { 
-  createProductSaleData, 
-  createServiceSaleData, 
+import {
+  createProductSaleData,
+  createServiceSaleData,
   createCombinedReceiptData,
   splitCartItems,
   calculateSplitPaymentTaxes,
-  calculateSplitPaymentAmounts
 } from '../utils/salesCalculations';
 
 const ipc = window.api;

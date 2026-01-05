@@ -16,7 +16,6 @@ import {
   FormControl,
   InputLabel,
   IconButton,
-  Divider,
   Alert,
   Snackbar,
 } from "@mui/material";
@@ -54,7 +53,7 @@ function StylistManagement() {
 
   useEffect(() => {
     loadStylists();
-  }, [statusFilter]);
+  }, [statusFilter, loadStylists]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;

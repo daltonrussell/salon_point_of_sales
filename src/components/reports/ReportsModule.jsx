@@ -150,6 +150,9 @@ function ReportsModule() {
             includeVoided,
           });
           break;
+        default:
+          console.warn(`Unknown report type: ${reportType}`);
+          return;
       }
 
       console.log(result);

@@ -8,7 +8,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Divider,
 } from "@mui/material";
 
 const StylistServicesTable = ({
@@ -55,12 +54,6 @@ const StylistServicesTable = ({
 
     return summary;
   }, {});
-
-  // Function to format date
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
 
   return (
     <Box>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { TextField, Button, Box } from "@mui/material";
-import { Refresh as RefreshIcon } from "@mui/icons-material";
+import { TextField, Box } from "@mui/material";
 
 const SaleDatePicker = ({ initialDate = new Date(), onDateChange }) => {
   // Format the initial date to YYYY-MM-DD format for the input
@@ -22,7 +21,7 @@ const SaleDatePicker = ({ initialDate = new Date(), onDateChange }) => {
     if (formattedInitialDate !== saleDate) {
       setSaleDate(formattedInitialDate);
     }
-  }, [initialDate]);
+  }, [initialDate, saleDate]);
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -33,16 +32,6 @@ const SaleDatePicker = ({ initialDate = new Date(), onDateChange }) => {
       // Create a Date object at noon to avoid timezone issues
       const dateObj = new Date(newDate + "T12:00:00");
       onDateChange(dateObj);
-    }
-  };
-
-  const handleUseCurrentDate = () => {
-    const currentDate = new Date();
-    const formattedDate = formatDate(currentDate);
-    setSaleDate(formattedDate);
-
-    if (onDateChange) {
-      onDateChange(currentDate);
     }
   };
 
