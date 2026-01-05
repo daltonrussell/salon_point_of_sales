@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -82,6 +82,15 @@ const InventoryPage = () => {
     sku: "",
   });
 
+  const loadInventory = useCallback(async () => {
+    try {
+      const items = await ipc.invoke("get-all-inventory");
+      setInventory(items);
+    } catch (error) {
+      console.error("Error loading inventory:", error);
+    }
+  }, []);
+
   useEffect(() => {
     loadInventory();
   }, [loadInventory]);
@@ -92,6 +101,7 @@ const InventoryPage = () => {
       resetReceiveDialog();
     }
   }, [isReceiveDialogOpen]);
+
   const handlePrintInventory = () => {
     // Create a new window for printing
     const printWindow = window.open("", "_blank");
@@ -248,16 +258,6 @@ const InventoryPage = () => {
       quantity: "",
       sku: "",
     });
-  };
-
-  const loadInventory = async () => {
-    try {
-      const items = await ipc.invoke("get-all-inventory");
-      setInventory(items);
-    } catch (error) {
-      console.error("Error loading inventory:", error);
-      showSnackbar("Error loading inventory", "error");
-    }
   };
 
   const showSnackbar = (message, severity = "success") => {
