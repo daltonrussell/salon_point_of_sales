@@ -374,6 +374,7 @@ function SalesForm() {
           taxRate,
           serviceTax,
           findStylistById,
+          tipAmount,
         );
       }
       // 3. SERVICE-ONLY SALE or NO PRODUCT STYLIST
@@ -448,6 +449,7 @@ function SalesForm() {
             saleDate,
             taxRate,
             findStylistById,
+            tipAmount,
           );
         } else {
           saleResults = await handleTraditionalSplitPayment(
@@ -460,6 +462,7 @@ function SalesForm() {
             secondaryAmount,
             saleDate,
             taxRate,
+            tipAmount,
           );
         }
       }

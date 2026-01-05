@@ -73,6 +73,7 @@ export const useSaleProcessing = () => {
     taxRate,
     serviceTax,
     findStylistById,
+    tipAmount = 0,
   ) => {
     // Create and submit service sale
     if (serviceItems.length > 0) {
@@ -83,6 +84,7 @@ export const useSaleProcessing = () => {
         paymentMethod,
         saleDate,
         serviceTax,
+        tipAmount,
       );
       await ipc.invoke("create-sale", serviceSaleData);
     }
@@ -96,6 +98,7 @@ export const useSaleProcessing = () => {
         paymentMethod,
         saleDate,
         taxRate,
+        tipAmount,
       );
       await ipc.invoke("create-sale", productSaleData);
     }
@@ -142,6 +145,7 @@ export const useSaleProcessing = () => {
     saleDate,
     taxRate,
     findStylistById,
+    tipAmount = 0,
   ) => {
     // Create service sale
     if (serviceItems.length > 0) {
@@ -160,6 +164,7 @@ export const useSaleProcessing = () => {
         primaryPaymentMethod,
         saleDate,
         luxuryServiceTax,
+        tipAmount,
       );
       await ipc.invoke("create-sale", serviceSaleData);
     }
@@ -173,6 +178,7 @@ export const useSaleProcessing = () => {
         secondaryPaymentMethod,
         saleDate,
         taxRate,
+        tipAmount,
       );
       await ipc.invoke("create-sale", productSaleData);
     }
@@ -228,6 +234,7 @@ export const useSaleProcessing = () => {
     secondaryAmount,
     saleDate,
     taxRate,
+    tipAmount = 0,
   ) => {
     const { sale1Services, sale1Products, sale2Services, sale2Products } = 
       splitCartItems(cartItems, primaryAmount, secondaryAmount);
@@ -261,7 +268,8 @@ export const useSaleProcessing = () => {
       products: sale1ProductsData,
       subtotal: sale1Subtotal,
       tax: sale1Taxes.totalTax,
-      total: sale1Subtotal + sale1Taxes.totalTax,
+      tip: tipAmount,
+      total: sale1Subtotal + sale1Taxes.totalTax + tipAmount,
       paymentMethod: primaryPaymentMethod,
       saleDate: saleDate,
     };
@@ -295,7 +303,8 @@ export const useSaleProcessing = () => {
       products: sale2ProductsData,
       subtotal: sale2Subtotal,
       tax: sale2Taxes.totalTax,
-      total: sale2Subtotal + sale2Taxes.totalTax,
+      tip: tipAmount,
+      total: sale2Subtotal + sale2Taxes.totalTax + tipAmount,
       paymentMethod: secondaryPaymentMethod,
       saleDate: saleDate,
     };

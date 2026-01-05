@@ -33,12 +33,22 @@ function ReportsModule() {
   const [selectedStylists, setSelectedStylists] = useState([]); // New state for multiple stylists
   const [services, setServices] = useState([]); // New state for services
   const [selectedServices, setSelectedServices] = useState([]); // New state for multiple services
-  const [startDate, setStartDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
-  const [endDate, setEndDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [startDate, setStartDate] = useState(() => {
+    // Use local date instead of UTC to avoid timezone shifts
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    // Use local date instead of UTC to avoid timezone shifts
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [reportData, setReportData] = useState(null);
   const [reportType, setReportType] = useState("stylist-sales");
   const [includeVoided, setIncludeVoided] = useState(false);
