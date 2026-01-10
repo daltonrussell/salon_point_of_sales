@@ -1,6 +1,6 @@
 {
   "name": "salon-test",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Todo List Application",
   "homepage": "./",
   "main": "public/electron.js",
