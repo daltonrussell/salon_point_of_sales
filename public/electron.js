@@ -7,7 +7,6 @@ const isDev = require("electron-is-dev");
 const _ = require("lodash");
 const fs = require("fs");
 const os = require("os");
-const Store = require("electron-store");
 
 /*** CONSTANTS & UTILITIES ***/
 let mainWindow;
@@ -41,18 +40,6 @@ db.defaults({
   saleItems: [],
   inventory: [],
 }).write();
-
-/*** SETTINGS STORE SETUP ***/
-const settingsStore = new Store({
-  name: 'settings',
-  defaults: {
-    taxRate: '8.00',
-    productStylistId: '',
-    saleDate: new Date().toISOString()
-  }
-});
-
-log("Settings store initialized");
 
 /*** DATABASE BACKUP FUNCTIONALITY ***/
 function getOneDrivePath() {
@@ -1824,42 +1811,6 @@ ipcMain.handle("get-backup-info", async () => {
     };
   } catch (error) {
     log("Error getting backup info:", error);
-    throw error;
-  }
-});
-
-/*** SETTINGS HANDLERS ***/
-ipcMain.handle("get-setting", async (event, key) => {
-  try {
-    const value = settingsStore.get(key);
-    return value;
-  } catch (error) {
-    log("Error getting setting:", key, error);
-    throw error;
-  }
-});
-
-ipcMain.handle("set-setting", async (event, key, value) => {
-  try {
-    settingsStore.set(key, value);
-
-    // Broadcast setting change to all windows
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("setting-changed", { key, value });
-    }
-
-    return { success: true };
-  } catch (error) {
-    log("Error setting setting:", key, error);
-    throw error;
-  }
-});
-
-ipcMain.handle("get-all-settings", async () => {
-  try {
-    return settingsStore.store;
-  } catch (error) {
-    log("Error getting all settings:", error);
     throw error;
   }
 });

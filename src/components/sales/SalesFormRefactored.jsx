@@ -31,7 +31,6 @@ import PaymentSection from "./PaymentSection";
 import { useCartManagement } from "../../hooks/useCartManagement";
 import { usePaymentManagement, useChangeCalculation } from "../../hooks/usePaymentManagement";
 import { useSaleProcessing } from "../../hooks/useSaleProcessing";
-import { useSettings } from "../../hooks/useSettings";
 
 const ipc = window.api;
 
@@ -43,16 +42,11 @@ function SalesForm() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   
-  // Form state - saleDate from electron-store is ISO string, convert to Date
-  const [saleDateString, setSaleDateString] = useSettings("saleDate", new Date().toISOString());
+  // Form state
   const [saleDate, setSaleDate] = useState(() => {
-    return saleDateString ? new Date(saleDateString) : new Date();
+    const savedDate = localStorage.getItem("saleDate");
+    return savedDate ? new Date(savedDate) : new Date();
   });
-
-  // Update electron-store when saleDate changes
-  useEffect(() => {
-    setSaleDateString(saleDate.toISOString());
-  }, [saleDate, setSaleDateString]);
   
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -75,10 +69,14 @@ function SalesForm() {
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [completedSaleData, setCompletedSaleData] = useState(null);
   
-  // Settings from electron-store
-  const [productStylistId] = useSettings("productStylistId", "");
-  const [taxRateString] = useSettings("taxRate", "8.00");
-  const taxRate = parseFloat(taxRateString) / 100;
+  // Settings from localStorage
+  const [productStylistId, setProductStylistId] = useState(() => {
+    return localStorage.getItem("productStylistId") || "";
+  });
+  const [taxRate, setTaxRate] = useState(() => {
+    const savedRate = localStorage.getItem("taxRate");
+    return savedRate ? parseFloat(savedRate) / 100 : 0.08;
+  });
 
   // Custom hooks
   const {
@@ -129,6 +127,25 @@ function SalesForm() {
     loadServices();
     loadAllClients();
     loadProducts();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("saleDate", saleDate.toISOString());
+  }, [saleDate]);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "taxRate") {
+        setTaxRate(parseFloat(e.newValue) / 100);
+      } else if (e.key === "productStylistId") {
+        setProductStylistId(e.newValue || "");
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   // Prevent form submission on Enter when using barcode scanner

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Box } from '@mui/material';
 import Sidebar from './components/layout/Sidebar';
 import SalesForm from './components/sales/SalesForm';
@@ -6,24 +6,10 @@ import Settings from './components/settings/Settings';
 import ReportsModule from './components/reports/ReportsModule';
 import InventoryPage from "./pages/InventoryPage";
 import CustomersPage from "./pages/CustomersPage";
-import ServicesPage from "./pages/ServicesPage";
-import { migrateLocalStorageToElectronStore } from './utils/settingsMigration';
+import ServicesPage from "./pages/ServicesPage"
 
 function App() {
   const [selectedMenuItem, setSelectedMenuItem] = useState('sales');
-
-  // Run settings migration on app start
-  useEffect(() => {
-    migrateLocalStorageToElectronStore()
-      .then(result => {
-        if (result.migrated) {
-          console.log(`Successfully migrated ${result.count} settings to electron-store`);
-        }
-      })
-      .catch(error => {
-        console.error('Settings migration failed:', error);
-      });
-  }, []);
 
   const renderContent = () => {
     switch (selectedMenuItem) {
