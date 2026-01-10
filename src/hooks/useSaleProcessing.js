@@ -89,6 +89,7 @@ export const useSaleProcessing = () => {
     }
 
     // Create and submit product sale
+    // House sales (product stylist) never get tips - tips go to service stylist only
     if (productItems.length > 0) {
       const productSaleData = createProductSaleData(
         productItems,
@@ -97,7 +98,7 @@ export const useSaleProcessing = () => {
         paymentMethod,
         saleDate,
         taxRate,
-        tipAmount,
+        0,  // House sales never get tips
       );
       await ipc.invoke("create-sale", productSaleData);
     }
@@ -169,6 +170,7 @@ export const useSaleProcessing = () => {
     }
 
     // Create product sale
+    // House sales (product stylist) never get tips - tips go to service stylist only
     if (productItems.length > 0) {
       const productSaleData = createProductSaleData(
         productItems,
@@ -177,7 +179,7 @@ export const useSaleProcessing = () => {
         secondaryPaymentMethod,
         saleDate,
         taxRate,
-        tipAmount,
+        0,  // House sales never get tips
       );
       await ipc.invoke("create-sale", productSaleData);
     }
