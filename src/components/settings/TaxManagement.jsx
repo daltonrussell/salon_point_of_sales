@@ -1,5 +1,6 @@
 // TaxManagement.jsx
 import React, { useState } from 'react';
+import { useSettings } from '../../hooks/useSettings';
 import {
   Box,
   TextField,
@@ -12,11 +13,8 @@ import {
 } from '@mui/material';
 
 function TaxManagement() {
-  // Initialize tax rate from localStorage, with a default of 8.00%
-  // We use a callback in useState to ensure we only read from localStorage once
-  const [taxRate, setTaxRate] = useState(() => {
-    return localStorage.getItem('taxRate') || '8.00';
-  });
+  // Initialize tax rate from electron-store, with a default of 8.00%
+  const [taxRate, setTaxRate] = useSettings('taxRate', '8.00');
 
   // State for managing the success/error notification
   const [notification, setNotification] = useState({
@@ -43,7 +41,7 @@ function TaxManagement() {
   };
 
   // Handler for saving the tax rate
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
       // Convert to number and validate again before saving
       const numValue = parseFloat(taxRate);
@@ -53,8 +51,7 @@ function TaxManagement() {
 
       // Format the number to always show 2 decimal places
       const formattedTaxRate = numValue.toFixed(2);
-      localStorage.setItem('taxRate', formattedTaxRate);
-      setTaxRate(formattedTaxRate);
+      await setTaxRate(formattedTaxRate);
 
       // Show success notification
       setNotification({

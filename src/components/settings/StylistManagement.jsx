@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSettings } from "../../hooks/useSettings";
 import {
   Box,
   Paper,
@@ -31,15 +32,16 @@ function StylistManagement() {
   });
   const [stylists, setStylists] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [productStylist, setProductStylist] = useState(() => {
-    const savedId = localStorage.getItem("productStylistId");
-    return savedId || "";
-  });
+  const [productStylist, setProductStylist] = useSettings("productStylistId", "");
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
-  const saveProductStylistSetting = () => {
-    localStorage.setItem("productStylistId", productStylist);
-    setShowSaveSuccess(true);
+  const saveProductStylistSetting = async () => {
+    try {
+      await setProductStylist(productStylist);
+      setShowSaveSuccess(true);
+    } catch (error) {
+      console.error("Error saving product stylist setting:", error);
+    }
   };
 
   const loadStylists = useCallback(async () => {

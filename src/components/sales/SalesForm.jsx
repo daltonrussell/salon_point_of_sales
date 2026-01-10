@@ -31,6 +31,7 @@ import PaymentSection from "./PaymentSection";
 import { useCartManagement } from "../../hooks/useCartManagement";
 import { usePaymentManagement, useChangeCalculation } from "../../hooks/usePaymentManagement";
 import { useSaleProcessing } from "../../hooks/useSaleProcessing";
+import { useSettings } from "../../hooks/useSettings";
 
 const ipc = window.api;
 
@@ -67,14 +68,10 @@ function SalesForm() {
   const [completedSaleData, setCompletedSaleData] = useState(null);
   const [customerToEdit, setCustomerToEdit] = useState(null);
   
-  // Settings from localStorage
-  const [productStylistId, setProductStylistId] = useState(() => {
-    return localStorage.getItem("productStylistId") || "";
-  });
-  const [taxRate, setTaxRate] = useState(() => {
-    const savedRate = localStorage.getItem("taxRate");
-    return savedRate ? parseFloat(savedRate) / 100 : 0.08;
-  });
+  // Settings from electron-store
+  const [productStylistId] = useSettings("productStylistId", "");
+  const [taxRateString] = useSettings("taxRate", "8.00");
+  const taxRate = parseFloat(taxRateString) / 100;
 
   // Custom hooks
   const {
@@ -128,20 +125,6 @@ function SalesForm() {
   }, []);
 
 
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "taxRate") {
-        setTaxRate(parseFloat(e.newValue) / 100);
-      } else if (e.key === "productStylistId") {
-        setProductStylistId(e.newValue || "");
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
 
   // Prevent form submission on Enter when using barcode scanner
   useEffect(() => {
