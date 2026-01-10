@@ -337,6 +337,7 @@ function SalesForm() {
       let saleResults;
 
       // 1. PRODUCT-ONLY SALE (without tip - goes to house sales)
+      // House sales never get tips - tips always go to the actual stylist
       if (shouldUseProductStylist && !hasServices && tipAmount === 0) {
         saleResults = await handleProductOnlySale(
           productItems,
@@ -345,7 +346,7 @@ function SalesForm() {
           paymentMethod || "back-bar",
           saleDate,
           taxRate,
-          tipAmount,
+          0,  // Always 0 tip for house sales
         );
       }
       // 1B. PRODUCT-ONLY SALE WITH TIP (use actual stylist, not product stylist)

@@ -354,10 +354,20 @@ function SalesForm() {
       const clientId = selectedCustomer ? selectedCustomer.id : null;
       const stylistId = selectedStylist ? selectedStylist.id : null;
 
+      console.log("DEBUG: Sale details", {
+        shouldUseProductStylist,
+        hasServices,
+        tipAmount,
+        productStylistId,
+        stylistId,
+      });
+
       let saleResults;
 
       // 1. PRODUCT-ONLY SALE (without tip - goes to house sales)
+      // House sales never get tips - tips always go to the actual stylist
       if (shouldUseProductStylist && !hasServices && tipAmount === 0) {
+        console.log("DEBUG: Branch 1 - Product only without tip");
         saleResults = await handleProductOnlySale(
           productItems,
           clientId,
@@ -365,11 +375,12 @@ function SalesForm() {
           paymentMethod || "back-bar",
           saleDate,
           taxRate,
-          tipAmount,
+          0,  // Always 0 tip for house sales
         );
       }
       // 1B. PRODUCT-ONLY SALE WITH TIP (use actual stylist, not product stylist)
       else if (shouldUseProductStylist && !hasServices && tipAmount > 0) {
+        console.log("DEBUG: Branch 1B - Product only WITH tip (assigned to stylist)");
         // Treat as product-only sale but assign to actual stylist
         const productsData = productItems.map((item) => ({
           inventoryId: item.product.id,
