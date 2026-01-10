@@ -31,6 +31,7 @@ import PaymentSection from "./PaymentSection";
 import { useCartManagement } from "../../hooks/useCartManagement";
 import { usePaymentManagement, useChangeCalculation } from "../../hooks/usePaymentManagement";
 import { useSaleProcessing } from "../../hooks/useSaleProcessing";
+import { useSettings } from "../../hooks/useSettings";
 
 const ipc = window.api;
 
@@ -42,11 +43,16 @@ function SalesForm() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   
-  // Form state
+  // Form state - saleDate from electron-store is ISO string, convert to Date
+  const [saleDateString, setSaleDateString] = useSettings("saleDate", new Date().toISOString());
   const [saleDate, setSaleDate] = useState(() => {
-    const savedDate = localStorage.getItem("saleDate");
-    return savedDate ? new Date(savedDate) : new Date();
+    return saleDateString ? new Date(saleDateString) : new Date();
   });
+
+  // Update electron-store when saleDate changes
+  useEffect(() => {
+    setSaleDateString(saleDate.toISOString());
+  }, [saleDate, setSaleDateString]);
   
   // Selected item states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -69,14 +75,10 @@ function SalesForm() {
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [completedSaleData, setCompletedSaleData] = useState(null);
   
-  // Settings from localStorage
-  const [productStylistId, setProductStylistId] = useState(() => {
-    return localStorage.getItem("productStylistId") || "";
-  });
-  const [taxRate, setTaxRate] = useState(() => {
-    const savedRate = localStorage.getItem("taxRate");
-    return savedRate ? parseFloat(savedRate) / 100 : 0.08;
-  });
+  // Settings from electron-store
+  const [productStylistId] = useSettings("productStylistId", "");
+  const [taxRateString] = useSettings("taxRate", "8.00");
+  const taxRate = parseFloat(taxRateString) / 100;
 
   // Custom hooks
   const {
@@ -127,25 +129,6 @@ function SalesForm() {
     loadServices();
     loadAllClients();
     loadProducts();
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("saleDate", saleDate.toISOString());
-  }, [saleDate]);
-
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "taxRate") {
-        setTaxRate(parseFloat(e.newValue) / 100);
-      } else if (e.key === "productStylistId") {
-        setProductStylistId(e.newValue || "");
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
   }, []);
 
   // Prevent form submission on Enter when using barcode scanner
@@ -323,14 +306,21 @@ function SalesForm() {
       const hasProducts = productItems.some((item) => !item.isBackBar);
       const hasServices = serviceItems.length > 0;
 
+      // Validate: Tips must always go to an actual stylist, never to house sales
+      if (tipAmount > 0 && !selectedStylist) {
+        alert("You must select a stylist when adding a tip.");
+        window.saleInProgress = false;
+        return;
+      }
+
       const shouldUseProductStylist = productStylistId && hasProducts;
       const clientId = selectedCustomer ? selectedCustomer.id : null;
       const stylistId = selectedStylist ? selectedStylist.id : null;
 
       let saleResults;
 
-      // 1. PRODUCT-ONLY SALE
-      if (shouldUseProductStylist && !hasServices) {
+      // 1. PRODUCT-ONLY SALE (without tip - goes to house sales)
+      if (shouldUseProductStylist && !hasServices && tipAmount === 0) {
         saleResults = await handleProductOnlySale(
           productItems,
           clientId,
@@ -340,6 +330,32 @@ function SalesForm() {
           taxRate,
           tipAmount,
         );
+      }
+      // 1B. PRODUCT-ONLY SALE WITH TIP (use actual stylist, not product stylist)
+      else if (shouldUseProductStylist && !hasServices && tipAmount > 0) {
+        // Treat as product-only sale but assign to actual stylist
+        const productsData = productItems.map((item) => ({
+          inventoryId: item.product.id,
+          price: item.price,
+          quantity: item.quantity,
+          isBackBar: !!item.isBackBar,
+        }));
+
+        const saleData = {
+          ClientId: clientId,
+          StylistId: stylistId,
+          services: [],
+          products: productsData,
+          subtotal,
+          tax: productTax,
+          tip: tipAmount,
+          total: subtotal + productTax + tipAmount,
+          paymentMethod: paymentMethod || "back-bar",
+          saleDate: saleDate,
+        };
+
+        await ipc.invoke("create-sale", saleData);
+        saleResults = saleData;
       }
       // 2. MIXED SALE WITHOUT SPLIT PAYMENT
       else if (shouldUseProductStylist && hasServices && !splitPayment) {
@@ -354,6 +370,7 @@ function SalesForm() {
           taxRate,
           serviceTax,
           findStylistById,
+          tipAmount,
         );
       }
       // 3. SERVICE-ONLY SALE or NO PRODUCT STYLIST
